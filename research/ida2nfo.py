@@ -86,7 +86,7 @@ while True:
             #print(f'skipped "{skipped}"')
             pass
         else:
-            out_line=f'comment {m.group(1)} {m.group(2)}\n'
+            out_line=f'lcomment {m.group(1)} {m.group(2)}\n'
             #print(f'writing "{out_line}"',end='')
             fp_out.write(out_line)
                 
