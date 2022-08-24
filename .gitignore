@@ -1,2 +1,7 @@
 build/
+*.bin
+*.lst
+*.bak
+*.tmp
+*.log
 

@@ -1,0 +1,13 @@
+include ../x9000.nfo
+include comments.nfo
+
+data c004-c03f  * copyright message
+word CD14-CDB3 * jump table
+word C55A-C5D8 * jump table
+
+label 0095 rx_data_count
+label 009b rx_buf
+label 009e rx_opcode
+label 009f rx_crc
+
+
