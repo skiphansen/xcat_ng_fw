@@ -27,11 +27,11 @@ while True:
         break;
     line=line.rstrip()
     #print(f'line "{line}"')
+    skip_comment = False
     if address == '':
         m = re.match(r'.*ORG     \$([0-9A-F]{4})$',line)
         if m:
             address=m.group(1)
-            adr=address
             #print(f'address set to "{address}"')
 
     m = re.match(r'.*;(.*)',line)
@@ -49,10 +49,14 @@ while True:
         if m:
             comment=m.group(3)
             if comment == '':
+                skip_comment = True
                 #print('stripped')
-                pass
 
-        if address != '' and comment != '':
+        if address != '' and not skip_comment:
+            if len(comment) > 0 and comment[0] == '.':
+                # a leading '.' in a comment means "keep leading spaces" so
+                # we need to escape it
+                comment='.' + comment
             out_line=f'lcomment {address} {comment}\n'
             #print(f'writing {out_line}',end='')
             fp_out.write(out_line)
