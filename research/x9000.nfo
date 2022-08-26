@@ -4,25 +4,50 @@ option 6301
 OPTION noflex
 OPTION noasc
 
-label 0000 DDR1
-label 0001 DDR2
-label 0002 PORT1
-label 0003 PORT2
-label 0004 DDR3
-label 0005 DDR4
-label 0006 PORT3
-label 0007 PORT4
-label 0008 TCSR
-label 0009 CNTH
-label 000A CNTL
-label 000B OCRH
-label 000D ICRH
-label 000E ICRH
+label 0   PORT1DDR        
+label 1   PORT2DDR        
+label 2   PORT1           
+label 3   PORT2           
+label 4   PORT3DDR        
+label 5   PORT4DDR        
+label 6   PORT3           
+label 7   PORT4           
+label 8   PORTTCSR1       
+label 9   PORTFRCHI       
+label A  PORTFRCLO       
+label B  PORTOCR1HI      
+label C  PORTOCR1LO      
+label D  PORTICRHI       
+label E  PORTICRLO       
+label F  PORTTCSR2       
+label 10 PORTRMCR        
+label 11 PORTTRCSR1      
+label 12 PORTRDR         
+label 13 PORTTDR         
+label 14 PORTRP5CSR      
+label 15 PORT5           
+label 16 PORT6DDR        
+label 17 PORT6           
+label 18 PORT7           
+label 19 PORTOCR2HI      
+label 1A PORTOCR2LO      
+label 1B PORTTCSR3       
+label 1C PORTTCONR       
+label 1D PORTT2CNT       
+label 1E PORTTRCSR2      
+label 1F PORTTEST        
+label 20 PORT5DDR        
+label 21 PORT6CSR        
 
-label 0010 RMCR
-label 0011 TRSR
-label 0012 RDR
-label 0013 TDR
+label 4000 SYNTHBUS0       
+label 4001 SYNTHBUS1       
+label 4002 SYNTHBUS2       
+label 4003 SYNTHBUS3       
+label 4004 SYNTHBUS4       
+label 4005 SYNTHBUS5       
+label 4006 SYNTHBUS6       
+label 4007 SYNTHBUS7       
 
+label C000 AUDIOCTLBUS
 
 

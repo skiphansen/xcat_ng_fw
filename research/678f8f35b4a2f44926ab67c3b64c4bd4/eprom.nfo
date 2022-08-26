@@ -4,10 +4,46 @@ include comments.nfo
 data c004-c03f  * copyright message
 word CD14-CDB3 * jump table
 word C55A-C5D8 * jump table
+unused F0AA-FFD8
 
 label 0095 rx_data_count
 label 009b rx_buf
 label 009e rx_opcode
 label 009f rx_crc
 
+label 40  BEGRAM          
+label 88  BUSYFLAGS1      
+label A0  STATUSBYTE      
+label A1  MODEADDR77      
+label A3  MODEADDR43      
+label 13F INITSP          
+label 140 ENDRAM          
+
+label C004 CPYSTR
+label C040 RESET
+label C068 CLRSTK
+label C085 ROMVALID
+label C096 PLUGVALID
+label C0A2 CPUTSTA
+label C0AE CPUTSTB
+label C0B8 MEMLOCPASS
+label C103 COLDSTART
+label C10F CLR4F5F
+label C122 BYTE23ZERO
+label C148 WARMSTART
+label C19C NOTESTMODE
+label C242 HANGRADIO
+label C394 SCIHDLR
+label C4B4 OCFHDLR
+label C716 TOFHDLR
+label C723 NMIHDLR
+label C730 OTHERHDLR
+label C74C ROMCKSUM
+label C759 CLRSUM
+label C75B SUMLOOP
+label C77C PLUGCK
+label C799 EXPLAINROMFAIL
+label C7A8 ERFLOOP
+label C7CD BADNOTBLANK
+label E36D SETUPMODEADDR77
 
