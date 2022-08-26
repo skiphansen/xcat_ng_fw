@@ -3,6 +3,8 @@
 import sys
 import re
 
+log = False
+
 args = len(sys.argv)
 
 if args != 3:
@@ -24,11 +26,15 @@ while True:
     line = fp_in.readline()
     if not line:
         break;
-    #m = re.search(r';',line)
+    line = line.rstrip()
+    if log:
+        print(f'line: "{line}"')
     m = re.search(r'([0-9A-Fa-f]{4}).*;(.*)',line)
     if m:
         while True:
             comment=m.group(2)
+            if log:
+                print(f'comment "{comment}"')
             skipped=''
             if re.search(r'DATA XREF:',comment):
                 skipped=comment
@@ -78,19 +84,19 @@ while True:
                 skipped=m.group(0)
                 break
 
-            #print(line,end='')
-            #print(f'group(1) "{m.group(1)}"')
-            #print(f'group(2) "{m.group(2)}"')
+            if log:
+                print(line,end='')
+                print(f'group(1) "{m.group(1)}"')
+                print(f'group(2) "{m.group(2)}"')
             break
+
         if skipped:
-            #print(f'skipped "{skipped}"')
-            pass
+            if log:
+                print(f'skipped "{skipped}"')
         else:
             out_line=f'lcomment {m.group(1)} {m.group(2)}\n'
-            #print(f'writing "{out_line}"',end='')
+            if log:
+                print(f'writing "{out_line}"',end='')
             fp_out.write(out_line)
+
                 
-                                
-        
-
-
