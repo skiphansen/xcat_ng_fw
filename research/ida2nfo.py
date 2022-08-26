@@ -94,7 +94,7 @@ while True:
             if log:
                 print(f'skipped "{skipped}"')
         else:
-            out_line=f'lcomment {m.group(1)} {m.group(2)}\n'
+            out_line=f'lcomment {m.group(1)} .{m.group(2)}\n'
             if log:
                 print(f'writing "{out_line}"',end='')
             fp_out.write(out_line)
