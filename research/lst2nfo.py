@@ -3,6 +3,7 @@
 import sys
 import re
 
+log = False
 args = len(sys.argv)
 
 if args != 3:
@@ -26,38 +27,47 @@ while True:
     if not line:
         break;
     line=line.rstrip()
-    #print(f'line "{line}"')
+    if log:
+        print(f'line "{line}"')
     skip_comment = False
+    lcomment = ''
     if address == '':
         m = re.match(r'.*ORG     \$([0-9A-F]{4})$',line)
         if m:
             address=m.group(1)
-            #print(f'address set to "{address}"')
+            if log:
+                print(f'address set to "{address}"')
 
     m = re.match(r'.*;(.*)',line)
     if m:
         comment=m.group(1)
-        #print(f'comment "{comment}"')
+        if log:
+            print(f'comment "{comment}"')
         m = re.match(r'.*;([0-9A-F]{4}): (.*)',line)
         if m:
             address=m.group(1)
             comment=m.group(2)
+            lcomment = 'l'
 
-        #print(f'comment "{comment}"')
+        if log:
+            print(f'comment "{comment}"')
 
         m = re.match(r'^([0-9A-F]{2})((?: [0-9A-F]{2}){0,}) {0,}(.*)$',comment)
         if m:
             comment=m.group(3)
             if comment == '':
                 skip_comment = True
-                #print('stripped')
+                if log:
+                    print('stripped')
 
         if address != '' and not skip_comment:
             if len(comment) > 0 and comment[0] == '.':
                 # a leading '.' in a comment means "keep leading spaces" so
                 # we need to escape it
                 comment='.' + comment
-            out_line=f'lcomment {address} {comment}\n'
-            #print(f'writing {out_line}',end='')
+            escaped=re.sub(r'(\*)','\*',comment)
+            out_line=f'{lcomment}comment {address} {escaped}\n'
+            if log:
+                print(f'writing {out_line}',end='')
             fp_out.write(out_line)
                 
