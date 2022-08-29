@@ -36,6 +36,12 @@ comment C000  013F-7FFF - Inaccessible
 comment C000  RW - 8000-BFFF - Code plug EEPROM
 comment C000  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
 comment C000  I/O map -
+comment C000 BUSYFLAGS1 bits
+comment C000  0x08 = sending serial data
+comment C000  0x20 = MEMACS received, only MEMADD, MEMFRA, and DEVJSR commands allowed
+comment C000 
+comment C000 
+comment C000 
 lcomment C040 Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
 lcomment C043 Enable on-chip RAM, leave standby
 lcomment C046 Initialize stack pointer to top of RAM
@@ -179,6 +185,7 @@ comment C25C  One full cycle would be about 53ms.
 lcomment C264 This would add about 2.5ms to the previously noted start point.
 lcomment C269 I think this is "all output except pin 0: timer 1 input"
 lcomment C26D Port 6 is mostly audio ctl bus
+lcomment C26F set port 6 to all outs
 lcomment C277 So $83 bit $20 was previously on
 lcomment C279 #8 would be Port 6 Pin 3, or MPU pin 28, which is K9.4 Enable
 lcomment C2D4 This is a branch through a jump table
@@ -199,7 +206,7 @@ comment C31F  command is for us, process it
 lcomment C326 ignore unsupported opcode
 lcomment C32D This is a branch through a jump table
 lcomment C32F jump to opcode handler
-lcomment C332 "Busy In" (active low)
+lcomment C332 Test "Busy In" (active low)
 lcomment C341 It appears the FRC is never _set_.
 comment C341  It is read in various places, often with bits
 comment C341  of math done on it, and comparisons.  I
@@ -217,19 +224,52 @@ lcomment C37A seg000:loc_C4A3P ...
 lcomment C38F clear rx count
 lcomment C394 Serial Communications unit interrupt handler
 lcomment C396 Enable interrupts
+lcomment C3DF read byte
+lcomment C3E1 save in rx data buffer
+lcomment C3F6 crc good?
+lcomment C3F7 yes!
+comment C3F7  5 byte command with CRC error received
+lcomment C401 Clear /BUSY
+comment C416 
 lcomment C417 Disable interrupts
-lcomment C4B7 jump indirect to handler
-lcomment C517 jump to routine address saved previously
-lcomment C51B ldab-extend
+lcomment C41A Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+comment C42F  5 byte command with good CRC receved
+comment C43E 
+lcomment C446 Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+comment C45E 
+lcomment C4A0 send byte
+comment C4B2  OCF (timer output compare) interrupt handler
+lcomment C4C4 Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+lcomment C4C9 Test "Busy In" (active low)
+lcomment C4D7 get first byte of packet
+lcomment C4D9 start sending packet
+lcomment C4F5 Clear /BUSY
+lcomment C50C Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+lcomment C517 jump to routine to set next timeout (saved previously)
+comment C519 
+lcomment C51B get our address
 lcomment C51E incb
 lcomment C51F incb
-lcomment C520 stab-direct
+lcomment C520 save first byte of packet sa address +2 (MPL???)
 lcomment C522 bra-relative
+comment C522 
 lcomment C524 ldab-extend
 lcomment C527 incb
-lcomment C528 stab-direct
+lcomment C528 save our address + 1 (DSP ???)
 lcomment C52A bra-relative
+comment C52A 
+lcomment C531 start sending packet
+lcomment C53F Test "Busy In" (active low)
+comment C542  Send byte in ACCB, return with interrupts disabled
+lcomment C544 Clear /BUSY
+lcomment C555 send byte
+lcomment C557 set carry ??
+comment C559 
 lcomment C55A This is a branch table referenced via X from 0xC320
+comment C562 0x10
+comment C572 0x20
+comment C582 0x40
+lcomment C729 set port 6 to all inputs
 lcomment C747 FUNCTION CHUNK AT C733 SIZE 0000000F BYTES
 lcomment C74C Calculates the simple sum of the entire firmware ROM except for the first
 comment C74C  two bytes, i.e. C002-FFFF.  Result is checked by the caller.  It appears
@@ -313,38 +353,50 @@ lcomment C806 Add 8, as set above, so after first ABX it should be $8008
 lcomment C807 Count down from 8, as set above
 lcomment C80A Increment pointer
 lcomment C80D Decrement outer loop counter
+lcomment C81C set MSB of routine address to 3
 lcomment C83F Seems to calculate ((b//5)\*6) + (b%5)
+lcomment C8DD start sending packet
 lcomment C931 Calculate memory offset of current mode entry in code plug
 comment C931  Uses $77 as source, $A1 as destination
+comment CAB3  Handle MEMACS (0x08) opcode
 lcomment CABA get address field
 lcomment CABE address == radio ?
 lcomment CAC0 jump if so
-comment CADC address matched
-lcomment CAE6 get address of a routine
+lcomment CAC2 our address?
+comment CADC  address matched
+lcomment CADE set programming mode flag
+lcomment CAE6 get address of timer update
 lcomment CAE9 save
+lcomment CAEB set port 6 to all inputs
 lcomment CAF2 Seems to set RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 lcomment CAF4 The processor runs in MCU Mode 1.
-comment CAF4  Memory map -
-comment CAF4  R  - 0000-0027 - MCU I/O registers
-comment CAF4  0028-003F - Empty
-comment CAF4  RW - 0040-013F - On-board RAM
-comment CAF4  013F-7FFF - Inaccessible
-comment CAF4  RW - 8000-BFFF - Code plug EEPROM
-comment CAF4  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
-comment CAF4  I/O map -
+comment CAFD 
+comment CB13  handle MEMADD opcode
+lcomment CB15 programming mode?
+lcomment CB18 ignore if not
 lcomment CB1A B/R set?
-lcomment CB1D jump if so
-lcomment CB1F point X to rx_buf
-lcomment CB21 get ??
-lcomment CB23 save it in rx_buf ???
+lcomment CB1D jump if read command
+comment CB1D  MEMADD write
+lcomment CB1F get address
+lcomment CB21 data to write
+lcomment CB23 write it!
+comment CB25  MEMADD read
 lcomment CB26 get MSB of address
-lcomment CB28 save it
+lcomment CB28 save it in reply
+lcomment CB2A start sending packet
 lcomment CB2D get LSB of address
-lcomment CB2F save it
-lcomment CB31 get MSB of address (again?)
+lcomment CB2F save it in reply
+lcomment CB31 get address to read
+lcomment CB33 read byte
 lcomment CB35 save it
 lcomment CB37 memadd opcode
 lcomment CB39 save it
+comment CB3B 
+comment CB8D opcode_ACTMDW activate a mode
+lcomment CB8F get address
+lcomment CB9D jump to handler
+comment CB9F 
+lcomment CCE4 start sending packet
 comment CCF0  opcodes 0, 4
 lcomment CD05 This is a branch through a jump table
 lcomment CD14 This is a jump table
@@ -409,4 +461,8 @@ comment E45B  FUNCTION CHUNK AT E559 SIZE 0000002C BYTES
 lcomment E4CD Is this the SB9600 "encrypted address / data" decoder?
 lcomment E539 Is this the SB9600 "encrypted address / data" decoder?
 lcomment FFE8 Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
+lcomment FFF0 01 manual says SCI (RDRF+ORFE+TDRE), i.e. UART
+lcomment FFF2 01 manual says TOF (timer overflow)
+lcomment FFF4 01 manual says OCF (timer output compare)
+lcomment FFF6 01 manual says ICF (timer input compare)
 lcomment FFFE Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5

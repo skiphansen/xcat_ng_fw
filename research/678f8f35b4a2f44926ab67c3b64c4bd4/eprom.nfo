@@ -1,18 +1,21 @@
 include ../x9000.nfo
 include comments.nfo
 
-data c004-c03f  * copyright message
+word c000-c001  * eprom checksum
+data c002-c03f  * copyright message
+const C4AC-C4B3 * data for crc routine ?
 word CD14-CDB3 * jump table
 word C55A-C5D8 * jump table
 unused F0AA-FFD8
 
-label 0095 rx_data_count
-label 009b rx_buf
-label 009e rx_opcode
-label 009f rx_crc
-
 label 40  BEGRAM          
 label 88  BUSYFLAGS1      
+label 91  rx_crc_acc
+label 0095 rx_data_count
+label 0096 tx_buf       * 4 bytes
+label 009b rx_buf       * 4 bytes
+label 009e rx_opcode
+label 009f rx_crc
 label A0  STATUSBYTE      
 label A1  MODEADDR77      
 label A3  MODEADDR43      
@@ -33,8 +36,13 @@ label C122 BYTE23ZERO
 label C148 WARMSTART
 label C19C NOTESTMODE
 label C242 HANGRADIO
+label C38E reset_rx
 label C394 SCIHDLR
 label C4B4 OCFHDLR
+label C55A opcode_jmp_tbl
+label CAB5 opcode_MEMACS
+label CB15 opcode_MEMADD
+label CB8F opcode_ACTMDW
 label C716 TOFHDLR
 label C723 NMIHDLR
 label C730 OTHERHDLR
