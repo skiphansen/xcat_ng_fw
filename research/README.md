@@ -107,6 +107,39 @@ for example:
 skip@Dell-7040:~/xcat/xcat_ng_fw/research/678f8f35b4a2f44926ab67c3b64c4bd4$ ../ida2info.sh ida_pro.lst comments.nfo
 ```
 
+## cp_dump.py
+
+Dumps X9000 code plug files to test our understanding of the format.
+
+Usage cp_dump.py \<binary dump or .RDF file>
+
+for example:
+```
+skip@Dell-7040:~/xcat/xcat_ng_fw/research$ ./cp_dump.py -f 10M6MTST.RDT
+dumping 10M6MTST.RDT
+EEPROM length 2048, checksum 0x5c6e
+Checksum is valid
+SB9600 address 0x01
+32 modes:
+Mode table has 24 bytes entries
+Radio range 29.7 - 50.0 Mhz
+Mode 1:
+frx 29.6
+ftx 29.6
+
+Mode 2:
+frx 52.525
+ftx 52.525
+
+Mode 3:
+frx 52.525
+ftx 52.525
+
+Mode 4:
+frx 29.6
+ftx 29.6
+```
+
 # Contributing
 
 To assist with the reverse engineering effort:
