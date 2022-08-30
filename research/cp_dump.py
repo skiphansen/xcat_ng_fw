@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/python3
 #
 # Copyright (C) 2022 Skip Hansen
 #
@@ -23,7 +23,7 @@
 import sys
 import argparse
 
-log = False
+Debug = False
 
 RangeTbl = (
     ('29.7 - 50.0',-75.7e6),
@@ -42,19 +42,43 @@ RangeTbl = (
 
 RefTbl = (('not used',0),('6.25 Khz',6250),('4.16667 Khz',4167),('5 Khz',5000))
 
-CTbl = (-1,1,0,2)
-LowBand = False
-Mhz800 = False
-IfFreq = 0
+CTbl = (-1,1,3,2)
+
+def DumpHex(data,no_lf=False,with_adr=False,start_addr=0):
+    DataLen = len(data)
+    first = True
+    Displayed = 0
+    addr = start_addr
+    for byte in data:
+        if not first:
+            print(' ',end='')
+        elif with_adr:
+            print(f'{addr:04x}: ',end='')
+            addr += 16;
+
+        first = False
+        print(f'{byte:02X}',end='')
+        Displayed += 1
+        if Displayed == 16:
+            Displayed = 0
+            if not no_lf:
+                print('')
+                first = True
+
+    if not no_lf and Displayed > 0:
+        print('')
 
 #f(vco) = ((((64 * A) + (63 * B)) * 3 ) + C(table)) * f(ref)
 #low band: highside injection, add IF frequency of 75.7 Mhz
 #VHF: highside injection, add IF frequency of 53.9 Mhz
 #UHF: lowside injection, subtract IF frequency of 53.9 Mhz
-def calc_fco(synth_bytes):
-    if log:
-        print(f'Raw bytes 0x{synth_bytes[0]:02x} 0x{synth_bytes[1]:02x} 0x{synth_bytes[2]:02x}')
+def calc_fco(synth_bytes,LowBand):
+    if Debug:
+        print(f'Raw bytes: ',end='')
+        DumpHex(synth_bytes)
 
+    if synth_bytes[0] == 0 and synth_bytes[1] == 0 and synth_bytes[2] == 0:
+        return 0
     A = synth_bytes[0] & 0x3f
     B = ((synth_bytes[0] & 0xc0) >> 6) + (synth_bytes[1] << 2)
 
@@ -62,31 +86,35 @@ def calc_fco(synth_bytes):
     V = (synth_bytes[2] & 0xc) >> 2
     C = (synth_bytes[2] & 0x30) >> 4
     S = (synth_bytes[2] & 0xc0) >> 6
-    if log:
+    if Debug:
         print(f'A {A} 0x{A:02x}, B {B} 0x{B:02x}, V {V}, R {R}, C {C}')
     fref = RefTbl[R][1]
-    if log:
+    if Debug:
         print(f'fref {fref}')
     fvco = (64 * A) + (63 * B)
     if not LowBand:
         fvco *= 3
         #c bits are extender control for lowband C1 = 1 C0 = extender on/off
+        if C == 0:
+            print(f'Error: C value ({C}) is invalid!')
         c = CTbl[C]
-        if log:
+        if Debug:
             print(f'c {c}')
         fvco += c
     fvco *= fref
-    if log:
+    if Debug:
         print(f'fvco {fvco/1e6}')
     return fvco
 
-def calc_rx(fvco):
+def calc_rx(fvco,IfFreq):
     if fvco == 0:
         return fvco
     else:
+        if Debug:
+            print(f'calc_rx: IfFreq {IfFreq/1e6}')
         return fvco + IfFreq
 
-def calc_tx(fvco):
+def calc_tx(fvco,LowBand,Mhz800):
     if fvco == 0:
         return fvco
     elif LowBand:
@@ -97,25 +125,68 @@ def calc_tx(fvco):
         return fvco
 
 
-args = len(sys.argv)
+def CalcPl(base,multiplier):
+    freq = round((multiplier & 0x7fff) / base *10)
+    freq /= 10
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--File",help="raw code plug to dump")
-args = parser.parse_args()
+    if Debug:
+        print(f'freq {freq}')
 
-parser.add_argument("--Test",help="Run internal test",action="store_true")
-args = parser.parse_args()
-if args.File:
-    print(f'dumping {args.File}')
+    return freq
+
+def DumpPlDpl(i,plug,BigEEPROM):
+    if BigEEPROM:
+        offset = 0x1e00
+    else:
+        offset = 0x700
+    offset += (i - 1)  * 4
+    rx_value = (plug[offset] << 8) + plug[offset+1]
+    tx_value = (plug[offset+2] << 8) + plug[offset+3]
+    if Debug:
+        print(f'PL/DPL table[0x{offset:04x}] = 0x{rx_value:04x}')
+        print(f'PL/DPL table[0x{offset+4:04x}] = 0x{tx_value:04x}')
+    if rx_value > 0 and rx_value < 0xf000:
+        RxPl = CalcPl(61.22666,rx_value)
+        print(f'Rx PL {RxPl}')
+
+    if tx_value > 0 and tx_value < 0xf000:
+        TxPl = CalcPl(17.70666,tx_value)
+        print(f'Tx PL {TxPl}')
+
+def DumpScanlist(scanlist):
+    mode = 1
+    First = True
+    print('Scanning NP modes: ',end='')
+    for byte in scanlist:
+        mask = 0x80
+        while mask != 0:
+            if byte & mask:
+                if not First:
+                    print(', ',end='')
+                First = False
+                print(f'{mode}',end='')
+            mask >>= 1
+            mode += 1
+    print('')
+
+
+def DumpCp(filename):
+    BigEEPROM = False
+    LowBand = False
+    Mhz800 = False
+    empty_scan_list = bytearray(b'\0') * 8
+
+    print(f'dumping {filename}')
 
     try:
-        fp = open(args.File,mode='rb')
+        fp = open(filename,mode='rb')
     except OSError as err:
         print(err)
         exit(code=err.errno)
 
+
     while True:
-        if args.File.endswith('.RDT'):
+        if filename.endswith('.RDT'):
             ignored = fp.read(1)
         plug = fp.read()
         if not plug:
@@ -123,9 +194,19 @@ if args.File:
         length = ((plug[0] << 8) + plug[1]) + 1
         saved_sum = (plug[2] << 8) + plug[3]
 
-        if length != 2048 and length != 8192:
+        if length == 8192:
+            BigEEPROM = True
+        elif length != 2048:
             print(f'Invalid length {length}, must be 2048 or 8192')
             break
+        rss_data = plug[8192:]
+        plug=plug[0:length]
+        if Debug:
+            print(f'plug:')
+            DumpHex(plug,with_adr=True)
+            print(f'rss_data ({len(rss_data)} bytes):')
+            DumpHex(rss_data,with_adr=True)
+
         print(f'EEPROM length {length}, checksum 0x{saved_sum:04x}')
         adr = 4
         sum = 0
@@ -153,7 +234,7 @@ if args.File:
         ModeLen = plug[9]
         print(f'Mode table has {ModeLen} bytes entries')
 
-        RadioRange = plug[0x2001 - 1]
+        RadioRange = rss_data[0]
         if RadioRange < 1 or RadioRange > 0xc:
             print(f'Invalid radio range 0x{RadioRange:02x} ?!?')
             break
@@ -165,18 +246,59 @@ if args.File:
         mode = 1
         while mode <= modes:
             i = 0x100 + ((mode - 1) * ModeLen)
-            fvco = calc_fco((plug[i],plug[i + 1],plug[i+2]))
-            frx = calc_rx(fvco)
-            fvco = calc_fco((plug[i+3],plug[i + 4],plug[i+5]))
-            ftx = calc_tx(fvco)
-            if ftx != 0 or frx != 0:
+            mode_data = plug[i:i+ModeLen]
+            if Debug:
+                print(f'Mode {mode}:')
+                DumpHex(mode_data)
+            fvco = calc_fco(mode_data[0:3],LowBand)
+            frx = calc_rx(fvco,IfFreq)
+            if Debug:
+                print(f'frx {frx/1e6}')
+                print('')
+            fvco = calc_fco(mode_data[3:6],LowBand)
+            ftx = calc_tx(fvco,LowBand,Mhz800)
+            if Debug:
+                print(f'ftx {ftx/1e6}')
+                print('')
+            fvco = calc_fco(mode_data[13:16],LowBand)
+            ftalk_around = calc_tx(fvco,LowBand,Mhz800)
+            if Debug:
+                print(f'ftalk_around {ftalk_around/1e6}')
+                print('')
+            elif ftx != 0 or frx != 0 or ftalk_around != 0:
                 print(f'Mode {mode}:')
                 if frx != 0:
                     print(f'frx {frx/1e6}')
                 if ftx != 0:
                     print(f'ftx {ftx/1e6}')
+                if ftalk_around != 0:
+                    print(f'ftalk_around {ftalk_around/1e6}')
                 print('')
+
+            if mode_data[6] != 0:
+            # Pl / DPL programmed
+                DumpPlDpl(mode_data[6],plug,BigEEPROM)
+            scanlist=mode_data[16:25]
+            if bytearray(scanlist) != empty_scan_list:
+                DumpScanlist(scanlist)
             mode += 1
 
     fp.close()
+
+args = len(sys.argv)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-d', '--Debug',action='store_true')
+parser.add_argument('file',nargs='+')
+args = parser.parse_args()
+
+parser.add_argument("--Test",help="Run internal test",action="store_true")
+args = parser.parse_args()
+
+if args.Debug:
+    Debug = True
+
+while len(args.file) > 0:
+    DumpCp(args.file[0])
+    args.file = args.file[1:len(args.file)]
                 
