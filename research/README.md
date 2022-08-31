@@ -126,18 +126,30 @@ Radio range 29.7 - 50.0 Mhz
 Mode 1:
 frx 29.6
 ftx 29.6
+ftalk_around 29.5
 
+Rx PL 103.5
+Tx PL 103.5
 Mode 2:
 frx 52.525
 ftx 52.525
+ftalk_around 53.0
 
+Rx PL 123.0
+Tx PL 141.3
 Mode 3:
 frx 52.525
 ftx 52.525
+ftalk_around 53.0
 
+Rx PL 141.3
+Tx PL 103.5
 Mode 4:
 frx 29.6
 ftx 29.6
+ftalk_around 29.5
+
+Tx PL 123.0
 ```
 
 # Contributing
