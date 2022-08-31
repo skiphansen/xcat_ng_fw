@@ -134,29 +134,37 @@ def CalcPl(base,multiplier):
 
     return freq
 
-def DumpPlDpl(i,plug,BigEEPROM):
-    if BigEEPROM:
-        offset = 0x1e00
-    else:
-        offset = 0x700
-    offset += (i - 1)  * 4
-    rx_value = (plug[offset] << 8) + plug[offset+1]
-    tx_value = (plug[offset+2] << 8) + plug[offset+3]
+def DumpPlDpl(mode_data,plug,BigEEPROM):
+    PlTbl = (plug[0x18] << 8) + plug[0x19]
+    rx_index = mode_data[6]
+    tx_index = mode_data[7]
+
+    if rx_index != 0:
+        offset = PlTbl + (rx_index  - 1)  * 4
+        rx_value = (plug[offset] << 8) + plug[offset+1]
+
+    if tx_index != 0:
+        offset = PlTbl + (tx_index - 1)  * 4
+        tx_value = (plug[offset] << 8) + plug[offset+1]
+
     if Debug:
-        print(f'PL/DPL table[0x{offset:04x}] = 0x{rx_value:04x}')
-        print(f'PL/DPL table[0x{offset+4:04x}] = 0x{tx_value:04x}')
+        print(f'PlTbl 0x{PlTbl:04x}')
+        print(f'rx_index {rx_index}')
+        print(f'rx_value {rx_value}')
+        print(f'tx_index {tx_index}')
+        print(f'tx_value {tx_value}')
+
     if rx_value > 0 and rx_value < 0xf000:
         RxPl = CalcPl(61.22666,rx_value)
-        print(f'Rx PL {RxPl}')
+        print(f'  Rx PL {RxPl}')
 
     if tx_value > 0 and tx_value < 0xf000:
         TxPl = CalcPl(17.70666,tx_value)
-        print(f'Tx PL {TxPl}')
+        print(f'  Tx PL {TxPl}')
 
 def DumpScanlist(scanlist):
     mode = 1
     First = True
-    print('Scanning NP modes: ',end='')
     for byte in scanlist:
         mask = 0x80
         while mask != 0:
@@ -169,6 +177,29 @@ def DumpScanlist(scanlist):
             mode += 1
     print('')
 
+def DumpMplTbl(plug):
+    PlTbl = (plug[0x18] << 8) + plug[0x19]
+    Entries = plug[0x1a]
+
+    i = 0
+    print('MPL table:')
+    while i < Entries:
+        print(f'  {i + 1}: Rx ',end='')
+        offset = PlTbl + (i  * 4)
+        rx_value = (plug[offset] << 8) + plug[offset+1]
+        tx_value = (plug[offset+2] << 8) + plug[offset+3]
+        if rx_value == 0:
+            print(f'CSQ',end='')
+        elif rx_value > 0 and rx_value < 0xf000:
+            RxPl = CalcPl(61.22666,rx_value)
+            print(f'PL {RxPl}',end='')
+            
+        if tx_value == 0:
+            print(f', Tx CSQ')
+        elif tx_value < 0xf000:
+            TxPl = CalcPl(17.70666,tx_value)
+            print(f', Tx PL {TxPl}')
+        i += 1
 
 def DumpCp(filename):
     BigEEPROM = False
@@ -222,6 +253,7 @@ def DumpCp(filename):
             print('Checksum is valid')
 
         print(f'SB9600 address 0x{plug[7]:02x}')
+
         modes = plug[8]
         if modes == 0:
             print(f'No modes defined ?!?')
@@ -230,9 +262,14 @@ def DumpCp(filename):
         s=''
         if modes > 1:
             s='s'
-        print(f'{plug[8]} mode{s}:')
+        print(f'{plug[8]} active mode{s}')
         ModeLen = plug[9]
-        print(f'Mode table has {ModeLen} bytes entries')
+        print(f'Mode table has {ModeLen} bytes entries.')
+        print(f'Minimum alert tone volume level {plug[0xa]}')
+        print(f'Default squelch level {plug[0xb]}')
+        print(f'Home mode {plug[0xe]}')
+        if plug[0x1a] != 0:
+            DumpMplTbl(plug)
 
         RadioRange = rss_data[0]
         if RadioRange < 1 or RadioRange > 0xc:
@@ -268,19 +305,29 @@ def DumpCp(filename):
             elif ftx != 0 or frx != 0 or ftalk_around != 0:
                 print(f'Mode {mode}:')
                 if frx != 0:
-                    print(f'frx {frx/1e6}')
+                    print(f'  frx {frx/1e6}')
                 if ftx != 0:
-                    print(f'ftx {ftx/1e6}')
+                    print(f'  ftx {ftx/1e6}')
                 if ftalk_around != 0:
-                    print(f'ftalk_around {ftalk_around/1e6}')
-                print('')
+                    print(f'  ftalk_around {ftalk_around/1e6}')
 
-            if mode_data[6] != 0:
-            # Pl / DPL programmed
-                DumpPlDpl(mode_data[6],plug,BigEEPROM)
+            if mode_data[6] != 0 or mode_data[7] != 0:
+            # A PL or DPL is programmed
+                DumpPlDpl(mode_data,plug,BigEEPROM)
+
             scanlist=mode_data[16:25]
-            if bytearray(scanlist) != empty_scan_list:
-                DumpScanlist(scanlist)
+            if mode_data[0xb] != 0 or mode_data[0xc] != 0 or bytearray(scanlist) != empty_scan_list:
+                print('  Scanning:')
+                if mode_data[0xb] != 0 and mode_data[0xc] != 0:
+                        print(f'    P1 mode {mode_data[0xb]}, P2 mode {mode_data[0xc]}')
+                elif mode_data[0xb] != 0:
+                    print(f'    P1 mode {mode_data[0xb]}')
+                elif mode_data[0xc] != 0:
+                    print(f'    P2 mode {mode_data[0xc]}')
+
+                if bytearray(scanlist) != empty_scan_list:
+                    print('    NP modes: ',end='')
+                    DumpScanlist(scanlist)
             mode += 1
 
     fp.close()
