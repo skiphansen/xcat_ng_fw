@@ -266,9 +266,10 @@ lcomment C555 send byte
 lcomment C557 set carry ??
 comment C559 
 lcomment C55A This is a branch table referenced via X from 0xC320
-comment C562 0x10
-comment C572 0x20
-comment C582 0x40
+comment C572 0x10
+comment C592 0x20
+comment C5B2 0x30
+comment C5DE 
 lcomment C729 set port 6 to all inputs
 lcomment C747 FUNCTION CHUNK AT C733 SIZE 0000000F BYTES
 lcomment C74C Calculates the simple sum of the entire firmware ROM except for the first
@@ -355,9 +356,29 @@ lcomment C80A Increment pointer
 lcomment C80D Decrement outer loop counter
 lcomment C81C set MSB of routine address to 3
 lcomment C83F Seems to calculate ((b//5)\*6) + (b%5)
+comment C89C handle VOLVAL opcode
 lcomment C8DD start sending packet
+comment C8F1  handle SQLVAL opcode
+comment C917 opcode_ACTMDW activate a mode
+lcomment C91A mask D1, D2
+lcomment C91C ignore if neither are set
 lcomment C931 Calculate memory offset of current mode entry in code plug
 comment C931  Uses $77 as source, $A1 as destination
+comment C93D 
+comment C941  handle RXAUD opcode
+comment C967 handle TXAUD opcode
+comment C9BB  handle DISMUT opcode
+comment C9C8  handle PTTINH opcode
+lcomment C9C9 PTT disable?
+lcomment C9CC jump if not
+lcomment C9CE set b3
+lcomment C9D1 set b1
+lcomment C9D5 clear b3
+lcomment C9D8 clear b1
+comment C9DB  handle RXPLIN opcode
+comment C9EE  handle REVINH opcode
+comment CA2B  handle ALRTTN opcode
+comment CA92  handle RPTDIR opcode
 comment CAB3  Handle MEMACS (0x08) opcode
 lcomment CABA get address field
 lcomment CABE address == radio ?
@@ -391,19 +412,54 @@ lcomment CB33 read byte
 lcomment CB35 save it
 lcomment CB37 memadd opcode
 lcomment CB39 save it
-comment CB3B 
-comment CB8D opcode_ACTMDW activate a mode
+comment CB3B  handle
+comment CB5B  handle VOLMIN opcode
+comment CB6B  handle ETONOF (extender on/off) opcode
+lcomment CB6C get D1, D2
+comment CB6E Either D1 or D2 must be set whenever an option Broadcasts this opcode.
+comment CB6E When both D1 and D2 are cleared, the Extender is updated to the radio
+lcomment CB72 move D1, D2 into upper nibble
+lcomment CB7D Extender on?
+lcomment CB80 jump if so
+lcomment CB82 clear b4
+comment CB85 
+lcomment CB86 set b4
+comment CB89 
+comment CB8D handle DEVJSR opcode
 lcomment CB8F get address
-lcomment CB9D jump to handler
+lcomment CB99 jump if not for us
+lcomment CB9B get address of routine from message
+lcomment CB9D jump to it!
 comment CB9F 
+comment CC5B  handle ACRXPL opcode
+comment CC80  handle ACTXPL opcode
+comment CCC5  handle OPTSTS opcode
 lcomment CCE4 start sending packet
+comment CCEB 
 comment CCF0  opcodes 0, 4
 lcomment CD05 This is a branch through a jump table
+comment CD07 
+comment CD09  handle ENTBUT opcode
+comment CD0D  handle EXTBUT opcode
+comment CD12 
 lcomment CD14 This is a jump table
+lcomment CE02 in configuration or ??? mode
+lcomment CE05 jump if so
 lcomment CE4D Calculate memory offset of current mode entry in code plug
 comment CE4D  Uses $43 as source, $A3 as destination
+comment CF22 
+lcomment CF32 calculate mode adr in EEPROM
+lcomment CFA0 calculate mode adr in EEPROM
 lcomment CFEB Calculate memory offset of current mode entry in code plug
 comment CFEB  Uses $43 as source, $A3 as destination
+lcomment D0BD ???
+lcomment D3CC calculate mode adr in EEPROM
+lcomment D3E1 calculate mode adr in EEPROM
+lcomment D5A1 calculate mode adr in EEPROM
+lcomment D5C6 calculate mode adr in EEPROM
+comment D678 
+lcomment D682 PTT disabled ?
+lcomment D685 jump if so
 lcomment DCB1 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 lcomment DCB9 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 lcomment DCC4 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
@@ -418,15 +474,7 @@ comment DCF7  013F-7FFF - Inaccessible
 comment DCF7  RW - 8000-BFFF - Code plug EEPROM
 comment DCF7  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
 comment DCF7  I/O map -
-lcomment DD16 The processor runs in MCU Mode 1.
-comment DD16  Memory map -
-comment DD16  R  - 0000-0027 - MCU I/O registers
-comment DD16  0028-003F - Empty
-comment DD16  RW - 0040-013F - On-board RAM
-comment DD16  013F-7FFF - Inaccessible
-comment DD16  RW - 8000-BFFF - Code plug EEPROM
-comment DD16  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
-comment DD16  I/O map -
+comment DD01 
 lcomment DD83 The processor runs in MCU Mode 1.
 comment DD83  Memory map -
 comment DD83  R  - 0000-0027 - MCU I/O registers
@@ -438,28 +486,67 @@ comment DD83  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
 comment DD83  I/O map -
 lcomment DDB3 Test "K9.4 Enable"
 lcomment DDB7 So $8D, $85 and $80 know something relevant to "K9.4 Enable"?
+lcomment DE87 jump if bit 0x40 (tx pl or dpl) or 1 are set
+lcomment DE95 PTT disabled ?
+lcomment DEA1 PTT disabled ?
+comment DF7B 
+comment DF9A 
+comment DFC3 
+lcomment E006 calculate mode adr in EEPROM
+lcomment E011 get Tx pl/dpl byte
+lcomment E025 calculate mode adr in EEPROM
+lcomment E03A calculate mode adr in EEPROM
+lcomment E071 calculate mode adr in EEPROM
+lcomment E09D calculate mode adr in EEPROM
+lcomment E0E0 calculate mode adr in EEPROM
+comment E139 
 lcomment E193 Calculate memory offset of current mode entry in code plug
 comment E193  Uses $77 as source, $A1 as destination
+lcomment E266 calculate mode adr in EEPROM
+lcomment E27E calculate mode adr in EEPROM
 lcomment E35C Port 6 Bit 3 is "K9.4 Enable"
+comment E36C set MODEADDR77 to the address of the current mode
 lcomment E36D Calculate memory offset of current mode entry in code plug
 comment E36D  Uses $77 as source, $A1 as destination
 comment E36D  Fetch current mode number
 lcomment E370 Fetch mode entry size in bytes
 lcomment E374 Offset to beginning of mode entries in code plug
 lcomment E379 End of function SETUPMODEADDR77
+comment E379 
 lcomment E37A Calculate memory offset of current mode entry in code plug
 comment E37A  Uses $43 as source, $A3 as destination
 comment E37A  Fetch current mode number
 lcomment E37D Fetch mode entry size in bytes
 lcomment E381 Offset to beginning of mode entries in code plug
 lcomment E386 End of function SETUPMODEADDR43
+comment E386 
+lcomment E38D Bus busy?
+comment E390 
+lcomment E397 Bus busy?
+comment E39A 
+lcomment E39C get two bytes of Syn bits
+lcomment E39E invert LSB
+lcomment E3A4 get upper nibble
+comment E3B7 
+comment E3BB 
+comment E3CC 
+comment E3D2 
+comment E3F4  Send 3 bytes to synthesizer chip
 lcomment E3F5 This sort of looks like moving code
 comment E3F5  plug bits to the divider / prescaler?
+lcomment E3F7 write with strobe low (A3)
+lcomment E3FA write again with strobe high
+lcomment E3FD and once more write with strobe low
+lcomment E42F clear bit 4
+comment E44C 
 lcomment E44D FUNCTION CHUNK AT E3F5 SIZE 00000058 BYTES
+comment E459 
 lcomment E45B FUNCTION CHUNK AT E4F7 SIZE 00000042 BYTES
 comment E45B  FUNCTION CHUNK AT E559 SIZE 0000002C BYTES
+lcomment E489 calculate mode adr in EEPROM
 lcomment E4CD Is this the SB9600 "encrypted address / data" decoder?
 lcomment E539 Is this the SB9600 "encrypted address / data" decoder?
+lcomment E59C calculate mode adr in EEPROM
 lcomment FFE8 Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
 lcomment FFF0 01 manual says SCI (RDRF+ORFE+TDRE), i.e. UART
 lcomment FFF2 01 manual says TOF (timer overflow)
