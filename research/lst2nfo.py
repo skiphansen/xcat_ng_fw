@@ -3,7 +3,44 @@
 import sys
 import re
 
-log = False
+def add_comment(fp_out,address,comment,lcomment):
+    global log
+    skip_comment = False
+    if log:
+        print(f'comment "{comment}"')
+
+    m = re.match(r'^([0-9A-F]{2})((?: [0-9A-F]{2}){0,}) {0,}(.*)$',comment)
+    if m:
+        comment=m.group(3)
+        if comment == '':
+            skip_comment = True
+            if log:
+                print('stripped')
+    elif comment == '****************************************************':
+        skip_comment = True
+        if log:
+            print('stripped')
+    elif comment == '* Program Code / Data Areas                        *':
+        skip_comment = True
+        if log:
+            print('stripped')
+
+    if address != '' and not skip_comment:
+        if len(comment) > 0 and comment[0] == '.':
+            if len(comment) == 1 and comment[0] == '.':
+                comment = '. '
+            else:
+            # a leading '.' in a comment means "keep leading spaces" so
+            # we need to escape it
+                comment='.' + comment
+        escaped=re.sub(r'(\*)','\*',comment)
+        out_line=f'{lcomment}comment {address} {escaped}\n'
+        if log:
+            print(f'writing {out_line}',end='')
+        fp_out.write(out_line)
+
+
+log = True
 args = len(sys.argv)
 
 if args != 3:
@@ -22,52 +59,57 @@ except OSError as err:
     exit(code=err.errno)
 
 address=''
+comment_stack = []
+# skip the first 7 lines of boiler plate
+for x  in range(7):
+    line = fp_in.readline()
+
 while True:
+    comment = ''
+    skip_comment = False
     line = fp_in.readline()
     if not line:
         break;
     line=line.rstrip()
     if log:
         print(f'line "{line}"')
-    skip_comment = False
-    lcomment = ''
-    if address == '':
-        m = re.match(r'.*ORG     \$([0-9A-F]{4})$',line)
-        if m:
-            address=m.group(1)
-            if log:
-                print(f'address set to "{address}"')
 
-    m = re.match(r'.*;(.*)',line)
+    m = re.match(r'.*;([0-9A-F]{4}): (.*)',line)
     if m:
-        comment=m.group(1)
+    # line with an address in the comment field
         if log:
-            print(f'comment "{comment}"')
-        m = re.match(r'.*;([0-9A-F]{4}): (.*)',line)
-        if m:
-            address=m.group(1)
-            comment=m.group(2)
-            lcomment = 'l'
-
-        if log:
-            print(f'comment "{comment}"')
-
-        m = re.match(r'^([0-9A-F]{2})((?: [0-9A-F]{2}){0,}) {0,}(.*)$',comment)
-        if m:
-            comment=m.group(3)
-            if comment == '':
-                skip_comment = True
-                if log:
-                    print('stripped')
-
-        if address != '' and not skip_comment:
-            if len(comment) > 0 and comment[0] == '.':
-                # a leading '.' in a comment means "keep leading spaces" so
-                # we need to escape it
-                comment='.' + comment
-            escaped=re.sub(r'(\*)','\*',comment)
-            out_line=f'{lcomment}comment {address} {escaped}\n'
+            print('line with an address in the comment field')
+        address=m.group(1)
+    # dump comment stack 
+        for comment in comment_stack:
             if log:
-                print(f'writing {out_line}',end='')
-            fp_out.write(out_line)
+                print(f'dumping comment "{comment}" from stack')
+            add_comment(fp_out,address,comment,'')
+        comment_stack = []
+        comment=m.group(2)
+    else:
+        m = re.match(r';(.*)',line)
+        if m:
+        # standalone comment
+            comment=m.group(1)
+            if comment == '':
+                comment = '.'
+            if log:
+                print(f'adding standalone comment "{comment}" to stack')
+            comment_stack.append(comment)
+            comment=''
+        else:
+            m = re.match(r'\s*;(.*)',line)
+            if m:
+            # line comment, save it until we get a new address
+                if log:
+                    print(f'adding comment "{comment}" to stack')
+                comment_stack.append(m.group(1))
+                comment=''
+
+    if comment != '':
+        add_comment(fp_out,address,comment,'l')
+        comment=''
+
+
                 
