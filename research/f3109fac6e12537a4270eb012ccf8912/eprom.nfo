@@ -1,0 +1,10 @@
+include ../x9000.nfo
+include comments.nfo
+
+word c000-c001  * eprom checksum
+data c002-c03f  * copyright message
+word C56b-c5e9 * jump table
+
+label C56b opcode_jmp_tbl
+
+
