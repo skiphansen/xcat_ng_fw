@@ -36,11 +36,22 @@ comment C000  013F-7FFF - Inaccessible
 comment C000  RW - 8000-BFFF - Code plug EEPROM
 comment C000  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
 comment C000  I/O map -
-comment C000 BUSYFLAGS1 bits
+comment C000 
+comment C000 RAM usage
+comment C000 0x49 Current squelch level 0-5
+comment C000 
+comment C000 0x75 bits default value on cold start = 0x82
+comment C000   0x02 PTT active (active low?)
+comment C000 0x83 bits
+comment C000   0x10 Extender On ?
+comment C000 
+comment C000 0x86 bits
+comment C000    0x80 configuration mode active (set by ENTBUT, cleared by EXTBUT)
+comment C000    0x01 used for something
+comment C000 
+comment C000 BUSYFLAGS1 bits (0x88)
 comment C000  0x08 = sending serial data
 comment C000  0x20 = MEMACS received, only MEMADD, MEMFRA, and DEVJSR commands allowed
-comment C000 
-comment C000 
 comment C000 
 lcomment C040 Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
 lcomment C043 Enable on-chip RAM, leave standby
@@ -85,7 +96,7 @@ comment C0CE  full of 0xA55A, then coldstart has run before.
 lcomment C0D2 0xA0 seems to be the error code storage location
 comment C0D2  All the error codes seem to include the 0x80 bit
 lcomment C0D5 So we found a fault during test
-lcomment C0D7 Apparently this location should be > 5
+lcomment C0D7 Check that the current squelch level is < 5
 lcomment C0DD Observed to contain $20 in 2k, $40 in 8x code plugs
 comment C0DD  Max mode number?
 lcomment C0E0 Apparently all of these locations should be > 0 and < ??max mode #??
@@ -106,7 +117,8 @@ lcomment C10F Clear 0x4F to 0x5F
 lcomment C115 Clear 0x4F to 0x5F
 lcomment C11B Initial mode number to select, from code plug header
 lcomment C124 This should be in the code plug header
-lcomment C129 This should be in the code plug header
+lcomment C129 get default squelch level from CP
+lcomment C12C save as current squelch level
 lcomment C12E This should be in the code plug header
 lcomment C140 Set "standby power was provided" flag
 comment C140  Do we use this as a "loaded mode data is valid" flag?
@@ -114,6 +126,7 @@ lcomment C143 Set the "radio was initialized" pattern
 lcomment C148 Radio passed all validity checks, so we don't need to do some of the initialization.
 comment C148  -or-
 comment C148  We fell through from the coldstart setups and continue with the warmstart ones.
+lcomment C164 get current squelch level
 lcomment C170 Calculate memory offset of current mode entry in code plug
 comment C170  Uses $77 as source, $A1 as destination
 lcomment C173 Calculate memory offset of current mode entry in code plug
@@ -188,6 +201,7 @@ lcomment C26D Port 6 is mostly audio ctl bus
 lcomment C26F set port 6 to all outs
 lcomment C277 So $83 bit $20 was previously on
 lcomment C279 #8 would be Port 6 Pin 3, or MPU pin 28, which is K9.4 Enable
+lcomment C298 squelch decision
 lcomment C2D4 This is a branch through a jump table
 lcomment C2DE seg000:loc_C2D8P ...
 comment C2DE  Disable receive interrupts on serial
@@ -264,8 +278,9 @@ comment C542  Send byte in ACCB, return with interrupts disabled
 lcomment C544 Clear /BUSY
 lcomment C555 send byte
 lcomment C557 set carry ??
-comment C559 
+comment C559  First level opcode handler jump table
 lcomment C55A This is a branch table referenced via X from 0xC320
+comment C562 0x08
 comment C572 0x10
 comment C592 0x20
 comment C5B2 0x30
@@ -377,6 +392,8 @@ lcomment C9D5 clear b3
 lcomment C9D8 clear b1
 comment C9DB  handle RXPLIN opcode
 comment C9EE  handle REVINH opcode
+lcomment CA04 set PTT bit (PTT inactive)
+lcomment CA08 clear PTT bit (PTT active)
 comment CA2B  handle ALRTTN opcode
 comment CA92  handle RPTDIR opcode
 comment CAB3  Handle MEMACS (0x08) opcode
@@ -435,31 +452,95 @@ comment CC5B  handle ACRXPL opcode
 comment CC80  handle ACTXPL opcode
 comment CCC5  handle OPTSTS opcode
 lcomment CCE4 start sending packet
-comment CCEB 
-comment CCF0  opcodes 0, 4
-lcomment CD05 This is a branch through a jump table
+comment CCEB  used by entries for opcodes SHOBUT, SETBUT, INCBUT, DECBUT, DELBUT and RCLBUT
+comment CCEB  in the first level opcode code table
+lcomment CCEC get address
+lcomment CCEE mask device address
+lcomment CCF2 jump if not broadcast, radio, dsp, or mpl
+lcomment CCF4 \* 2
+lcomment CCF5 \* 4
+lcomment CCF6 \* 8
+lcomment CCF7 b = device address \* 16
+lcomment CCFA button # < 16 ?
+lcomment CCFC ignore button if not
+lcomment CCFE add button number
+lcomment CD07 jump to handler for this opcode/button
 comment CD07 
 comment CD09  handle ENTBUT opcode
 comment CD0D  handle EXTBUT opcode
+comment CD12  Second level opcode code handler jump table
+comment CD12  used for SHOBUT, SETBUT, INCBUT, DECBUT, DELBUT and RCLBUT
+comment CD12  indexed by button number (device adr \* 16) + button number
 comment CD12 
+comment CD12  device address == 0 broadcast
 lcomment CD14 This is a jump table
+comment CD2C  device address == 1 radio
+comment CD4C  device address == 2 DSP
+comment CD6C  device address == 3 MPL
+comment CD94  device address == 4 Internal radio options
+comment CDAC  button handler for HUB addressed to broadcast
+comment CDC5  button handler for ignition sense addressed to broadcast
+comment CDD7  button handler for PTT addressed to broadcast
+lcomment CDDA SETBUT ?
+lcomment CDDC ignore if not
+lcomment CDE1 On ?
+lcomment CDE4 ignore if not
+lcomment CDE6 set bit 2 LOW
+comment CDE9  button handler for front/rear control addressed to broadcast
+lcomment CDEA get DATA2 and opcode
+comment CDFF  button handler for MODE sent to RADIO address
+lcomment CE00 get DATA2 and opcode
 lcomment CE02 in configuration or ??? mode
 lcomment CE05 jump if so
+lcomment CE0C get DATA2 and opcode
 lcomment CE4D Calculate memory offset of current mode entry in code plug
 comment CE4D  Uses $43 as source, $A3 as destination
+comment CE6A  button handler for volume sent to RADIO adr
+lcomment CE6B get DATA2 and opcode
+comment CED2  button handler for squelch sent to RADIO Adr
+lcomment CED4 get DATA2 and opcode
+lcomment CED6 SHOBUT?
+lcomment CEDA SETBUT ?
+lcomment CEDE INCBUT ?
+lcomment CEE2 CBUT ?
+lcomment CEE6 ENTBUT ?
+lcomment CEEA EXTBUT ?
+comment CEEE  handle SETBUT squelch sent to RADIO
+lcomment CEEF TA2 < 5 ?
+lcomment CEF1 jump if so and save it
+lcomment CEF9 get current squelch level
+lcomment CF02 get current squelch level
+lcomment CF07 save current squelch level
+lcomment CF1B get current squelch level
 comment CF22 
+lcomment CF29 get DATA2 and opcode
 lcomment CF32 calculate mode adr in EEPROM
+lcomment CF49 get DATA2 and opcode
+lcomment CF6B get DATA2 and opcode
+lcomment CF97 get DATA2 and opcode
 lcomment CFA0 calculate mode adr in EEPROM
+lcomment CFB2 get DATA2 and opcode
 lcomment CFEB Calculate memory offset of current mode entry in code plug
 comment CFEB  Uses $43 as source, $A3 as destination
+lcomment D009 get DATA2 and opcode
+lcomment D078 get DATA2 and opcode
+lcomment D0B5 get DATA2 and opcode
 lcomment D0BD ???
+lcomment D0E7 get DATA2 and opcode
+lcomment D391 get DATA2 and opcode
+lcomment D3C3 get DATA2 and opcode
 lcomment D3CC calculate mode adr in EEPROM
 lcomment D3E1 calculate mode adr in EEPROM
+lcomment D3F3 get DATA2 and opcode
+lcomment D421 get DATA2 and opcode
 lcomment D5A1 calculate mode adr in EEPROM
 lcomment D5C6 calculate mode adr in EEPROM
 comment D678 
 lcomment D682 PTT disabled ?
 lcomment D685 jump if so
+lcomment D762 get current squelch level
+lcomment D91D ptt active?
+lcomment D920 jump if not
 lcomment DCB1 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 lcomment DCB9 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 lcomment DCC4 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
@@ -486,7 +567,8 @@ comment DD83  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
 comment DD83  I/O map -
 lcomment DDB3 Test "K9.4 Enable"
 lcomment DDB7 So $8D, $85 and $80 know something relevant to "K9.4 Enable"?
-lcomment DE87 jump if bit 0x40 (tx pl or dpl) or 1 are set
+lcomment DDE6 squelch decision
+lcomment DE87 jump if bit 0x40 (tx pl or dpl) or 1 are set  ???
 lcomment DE95 PTT disabled ?
 lcomment DEA1 PTT disabled ?
 comment DF7B 
@@ -499,6 +581,8 @@ lcomment E03A calculate mode adr in EEPROM
 lcomment E071 calculate mode adr in EEPROM
 lcomment E09D calculate mode adr in EEPROM
 lcomment E0E0 calculate mode adr in EEPROM
+lcomment E11E get current squelch level
+lcomment E136 clear PTT bit (PTT active)
 comment E139 
 lcomment E193 Calculate memory offset of current mode entry in code plug
 comment E193  Uses $77 as source, $A1 as destination
@@ -531,6 +615,8 @@ comment E3B7
 comment E3BB 
 comment E3CC 
 comment E3D2 
+comment E3E9 
+lcomment E3EB PTT out low
 comment E3F4  Send 3 bytes to synthesizer chip
 lcomment E3F5 This sort of looks like moving code
 comment E3F5  plug bits to the divider / prescaler?
