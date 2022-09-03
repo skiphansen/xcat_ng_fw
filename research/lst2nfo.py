@@ -3,15 +3,28 @@
 import sys
 import re
 
+def escape_comment(comment):
+    if len(comment) > 0 and comment[0] == '.':
+        if len(comment) == 1 and comment[0] == '.':
+            comment = '. '
+        else:
+        # a leading '.' in a comment means "keep leading spaces" so
+        # we need to escape it
+            comment='.' + comment
+    escaped=re.sub(r'(\*)','\*',comment)
+    return escaped
+
 def add_comment(fp_out,address,comment,lcomment):
     global log
     skip_comment = False
     if log:
-        print(f'comment "{comment}"')
+        print(f'add_comment: comment "{comment}"')
 
-    m = re.match(r'^([0-9A-F]{2})((?: [0-9A-F]{2}){0,}) {0,}(.*)$',comment)
+    #m = re.match(r'^([0-9A-F]{2})((?: [0-9A-F]{2}){0,}) {0,}(.*)$',comment)
+    #m = re.match(r'^([0-9A-F]{2} ){1,}(.*)$',comment)
+    m = re.match(r'^(?:[0-9A-F]{2} ){1,}(.*)$',comment)
     if m:
-        comment=m.group(3)
+        comment=m.group(1)
         if comment == '':
             skip_comment = True
             if log:
@@ -26,15 +39,7 @@ def add_comment(fp_out,address,comment,lcomment):
             print('stripped')
 
     if address != '' and not skip_comment:
-        if len(comment) > 0 and comment[0] == '.':
-            if len(comment) == 1 and comment[0] == '.':
-                comment = '. '
-            else:
-            # a leading '.' in a comment means "keep leading spaces" so
-            # we need to escape it
-                comment='.' + comment
-        escaped=re.sub(r'(\*)','\*',comment)
-        out_line=f'{lcomment}comment {address} {escaped}\n'
+        out_line=f'{lcomment}comment {address} {comment}\n'
         if log:
             print(f'writing {out_line}',end='')
         fp_out.write(out_line)
@@ -70,7 +75,7 @@ while True:
     line = fp_in.readline()
     if not line:
         break;
-    line=line.rstrip()
+    line=line[0:-1]
     if log:
         print(f'line "{line}"')
 
@@ -92,24 +97,30 @@ while True:
         if m:
         # standalone comment
             comment=m.group(1)
-            if comment == '':
-                comment = '.'
+            if len(comment) == 0:
+            # empty comment means it was just a ';', unfortunately I can't
+            # figure out how to get f9dasm to recreate that exactly so...
+            # make the comment '-' which will generate '; -' and we'll fix
+            # it up with sed !!!
+                comment='-'
+            elif comment[0] == ' ':
+            # a comment directive always adds a ' ' after the ';' so delete it
+                comment = comment[1:]
             if log:
                 print(f'adding standalone comment "{comment}" to stack')
-            comment_stack.append(comment)
+            comment_stack.append('.' + comment)
             comment=''
         else:
             m = re.match(r'\s*;(.*)',line)
             if m:
             # line comment, save it until we get a new address
+                comment=m.group(1)
                 if log:
                     print(f'adding comment "{comment}" to stack')
-                comment_stack.append(m.group(1))
+                comment_stack.append(comment)
                 comment=''
 
     if comment != '':
-        add_comment(fp_out,address,comment,'l')
+        add_comment(fp_out,address,escape_comment(comment),'l')
         comment=''
 
-
-                
