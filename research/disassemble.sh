@@ -49,5 +49,8 @@ if [ ! -e ${base_name}.nfo ]; then
     touch comments.nfo
 fi
 
-${F9DASM_PATH}f9dasm -info ${base_name}.nfo -out ${base_name}.lst ${extra_opts} $1
+${F9DASM_PATH}f9dasm -info ${base_name}.nfo -out ${base_name}.tmp ${extra_opts} $1
+sed 's/^; -$/;/g' ${base_name}.tmp > ${base_name}.lst
+rm ${base_name}.tmp
+
 

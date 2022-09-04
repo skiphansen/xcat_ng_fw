@@ -29,14 +29,6 @@ def add_comment(fp_out,address,comment,lcomment):
             skip_comment = True
             if log:
                 print('stripped')
-    elif comment == '****************************************************':
-        skip_comment = True
-        if log:
-            print('stripped')
-    elif comment == '* Program Code / Data Areas                        *':
-        skip_comment = True
-        if log:
-            print('stripped')
 
     if address != '' and not skip_comment:
         out_line=f'{lcomment}comment {address} {comment}\n'
@@ -97,6 +89,7 @@ while True:
         if m:
         # standalone comment
             comment=m.group(1)
+            skip_comment = False
             if len(comment) == 0:
             # empty comment means it was just a ';', unfortunately I can't
             # figure out how to get f9dasm to recreate that exactly so...
@@ -106,9 +99,20 @@ while True:
             elif comment[0] == ' ':
             # a comment directive always adds a ' ' after the ';' so delete it
                 comment = comment[1:]
-            if log:
-                print(f'adding standalone comment "{comment}" to stack')
-            comment_stack.append('.' + comment)
+
+            if comment == '****************************************************':
+                skip_comment = True
+                if log:
+                    print('stripped')
+            elif comment == '* Program Code / Data Areas                        *':
+                skip_comment = True
+                if log:
+                    print('stripped')
+            if not skip_comment:
+                comment = escape_comment(comment)
+                if log:
+                    print(f'adding standalone comment "{comment}" to stack')
+                comment_stack.append('.' + comment)
             comment=''
         else:
             m = re.match(r'\s*;(.*)',line)
