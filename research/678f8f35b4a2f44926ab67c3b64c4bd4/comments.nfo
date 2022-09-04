@@ -1,641 +1,690 @@
-lcomment C000 Input MD5   : 678F8F35B4A2F44926AB67C3B64C4BD4
-comment C000  The processor runs in MCU Mode 1.
-comment C000  Memory map:
-comment C000  R  - 0000-0027 - MCU I/O registers
-comment C000  0028-003F - Empty
-comment C000  RW - 0040-013F - On-board RAM
-comment C000  013F-7FFF - Empty
-comment C000  What does the processor do with external address lines below 0140?
-comment C000  What does the processor do with accesses to 0028-003F?
-comment C000  Any external addressing is mapped to 8000+ by the address decoding hardware.
-comment C000  RW - 8000-BFFF - Code plug EEPROM
-comment C000  R  - C000-FFFF - Firmware EPROM (might be writable with jumpers)
-comment C000  I/O map (write-only):
-comment C000  W  - 4000-4007 - Synthesizer registers (latch U503)
-comment C000  W  - C000-C000 - Audio control bus register (latch U504)
-comment C000  Audio control bus bit map:
-comment C000  D0 - RX through de-emphasis filter (inverted at switch)
-comment C000  D1 - RX flat                       (inverted)
-comment C000  D2 - TX through splatter filter    (inverted)
-comment C000  D3 - TX flat
-comment C000  D4 - Preamp /WE                    (inverted, because /WE)
-comment C000  D5 - Squelch LSB
-comment C000  D6 - Squelch MSB
-comment C000  D7 - Mic mute                      (inverted)
-comment C000  Processor:        6303 []
-comment C000  Target assembler: Motorola FreeWare Assembler
-comment C000  ===========================================================================
-comment C000  Segment type: Pure code
-comment C000  segment seg000
-comment C000  The processor runs in MCU Mode 1.
-comment C000  Memory map -
-comment C000  R  - 0000-0027 - MCU I/O registers
-comment C000  0028-003F - Empty
-comment C000  RW - 0040-013F - On-board RAM
-comment C000  013F-7FFF - Inaccessible
-comment C000  RW - 8000-BFFF - Code plug EEPROM
-comment C000  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
-comment C000  I/O map -
-comment C000 
-comment C000 RAM usage
-comment C000 0x49 Current squelch level 0-5
-comment C000 
-comment C000 0x75 bits default value on cold start = 0x82
-comment C000   0x02 PTT active (active low?)
-comment C000 0x83 bits
-comment C000   0x10 Extender On ?
-comment C000 
-comment C000 0x86 bits
-comment C000    0x80 configuration mode active (set by ENTBUT, cleared by EXTBUT)
-comment C000    0x01 used for something
-comment C000 
-comment C000 BUSYFLAGS1 bits (0x88)
-comment C000  0x08 = sending serial data
-comment C000  0x20 = MEMACS received, only MEMADD, MEMFRA, and DEVJSR commands allowed
-comment C000 
-lcomment C040 Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
-lcomment C043 Enable on-chip RAM, leave standby
-lcomment C046 Initialize stack pointer to top of RAM
-lcomment C049 Make port 6 all output (two bytes though?)
-lcomment C04C Does this set pin 2 high on PORT6 at the same time due to word write?
-comment C04C  Pin 2 seems to be /DETECTOR MUTE
-lcomment C051 Make Port 5 pin 2 an output
-lcomment C055 Set i/o directions for RAM / Processor control
-lcomment C059 Set i/o directions for clock/timer port
-lcomment C05D Seems to set noDeEmph+noFlat+noSplatter+Preamp/WE+Squelch=11+MicMute
-lcomment C05F Initialize audio control bus
-comment C05F  (_Writes_ to C000 are actually i/o, not memory)
-lcomment C068 Clear memory from 0x5F to 0x140
-lcomment C06E Clear memory from 0x5F to 0x140
-lcomment C070 Frob the watchdog.  It doesn't seem to matter what you write to address 2
-comment C070  of the synthesizer, which is probably why this set of addresses was chosen.
-comment C070  The A3 bit turns into strobe.  Thus we set <something> into A2, then set
-comment C070  it again with strobe, then clear strobe.
-lcomment C079 Calculates the simple sum of the entire firmware ROM except for the first
-comment C079  two bytes, i.e. C002-FFFF.  Result is checked by the caller.  It appears
-comment C079  that the loop can run long enough to sum about 1024 bytes before needing
-comment C079  to frob the watchdog.  The manual says the watchdog is supposed to be
-comment C079  reset every 20ms or so, and that if the count hits 30ms, the 'dog resets
-comment C079  the radio.
-lcomment C07D The processor runs in MCU Mode 1.
-lcomment C082 Error code 81 is one of the "bad eeprom" codes
-lcomment C085 Checksum of code plug rom
-lcomment C093 Error code 82 is one of the "bad eeprom" codes
-lcomment C096 Frob watchdog
-lcomment C0A2 Test RAM from 0x5F to 0x140.  In the process, exercise the ALU a bit.
-lcomment C0AB Error code 88 is "bad cpu"
-lcomment C0B5 Error code 88 is "bad cpu"
-lcomment C0BE Frob watchdog
-lcomment C0C7 Do additional initialization of processor, and of memory data structures
-comment C0C7  Fetch RAM/Port 5 Control Register
-lcomment C0C9 High bit of this port indicates whether standby
-comment C0C9  power has been supplied (bit=1), in which case
-comment C0C9  this isn't a coldstart.
-lcomment C0CE 0x40-41 gets initialized later.  If it's already
-comment C0CE  full of 0xA55A, then coldstart has run before.
-lcomment C0D2 0xA0 seems to be the error code storage location
-comment C0D2  All the error codes seem to include the 0x80 bit
-lcomment C0D5 So we found a fault during test
-lcomment C0D7 Check that the current squelch level is < 5
-lcomment C0DD Observed to contain $20 in 2k, $40 in 8x code plugs
-comment C0DD  Max mode number?
-lcomment C0E0 Apparently all of these locations should be > 0 and < ??max mode #??
-comment C0E0  Current mode number of 0 means uninitialized
-lcomment C0E5 Current mode number > max mode means uninitialized
-lcomment C0E9 ??? of 0 means uninitialized (related to mode numbers)
-lcomment C0EE ??? > max mode number means uninitialized
-lcomment C0F2 ??? > max mode number means uninitialized
-lcomment C0F6 ??? > max mode number means uninitialized
-lcomment C0FA Initial mode to select in code plug header
-lcomment C0FF This test is weird, seems like $48 would have to contain a mode
-comment C0FF  number higher that the "initial" for this to be uninitialized.
-lcomment C101 We passed all the validity checks
-lcomment C103 Radio didn't pass at least some of its "setup is valid" checks, so do full initialization
-comment C103  Clear some fields
-lcomment C104 The 0x4_ range seems to be code plug data.
-lcomment C10F Clear 0x4F to 0x5F
-lcomment C115 Clear 0x4F to 0x5F
-lcomment C11B Initial mode number to select, from code plug header
-lcomment C124 This should be in the code plug header
-lcomment C129 get default squelch level from CP
-lcomment C12C save as current squelch level
-lcomment C12E This should be in the code plug header
-lcomment C140 Set "standby power was provided" flag
-comment C140  Do we use this as a "loaded mode data is valid" flag?
-lcomment C143 Set the "radio was initialized" pattern
-lcomment C148 Radio passed all validity checks, so we don't need to do some of the initialization.
-comment C148  -or-
-comment C148  We fell through from the coldstart setups and continue with the warmstart ones.
-lcomment C164 get current squelch level
-lcomment C170 Calculate memory offset of current mode entry in code plug
-comment C170  Uses $77 as source, $A1 as destination
-lcomment C173 Calculate memory offset of current mode entry in code plug
-comment C173  Uses $43 as source, $A3 as destination
-lcomment C17A This should be in the code plug header
-lcomment C17F This should be in the code plug header
-lcomment C187 This bit doesn't seem to get set until later
-comment C187  So what condition are we testing for here?
-lcomment C18C Ditto the bottom two bits
-lcomment C194 Are we in test mode? (jumper installed)
-lcomment C199 Maybe stash the status of test mode in $BF?
-lcomment C19F Frob the watchdog
-lcomment C1A8 This should be in the code plug header
-lcomment C1AB Seems to calculate ((b//5)\*6) + (b%5)
-lcomment C1B0 This should be in the code plug header
-lcomment C1B3 Seems to calculate ((b//5)\*6) + (b%5)
-lcomment C1B8 Frob the watchdog
-lcomment C1C1 This routine seems to build bitmaps of bytes on even zero and eight offsets
-comment C1C1  from the beginning of the code plug which have bits $80 or $40 set.  256 bytes
-comment C1C1  are scanned, so four bytes are used for each bitmap.
-lcomment C1C4 Serial comms setup
-comment C1C4  "Use T1FRC for baud", but the timer setup below seems
-comment C1C4  to suggest that Timer 2 TCONR is actually used.  Does
-comment C1C4  the SS2 bit get or'ed in later?
-comment C1C4  8bit, async, internal clock, port2 pin2 is clock output
-lcomment C1C8 timer 2 enab, output 1, clock=E/8
-comment C1C8  time constant 0x60
-comment C1C8  This time constant would seem to work out to
-comment C1C8  around 2,560 bps if it's used for the serial bus.
-lcomment C1CB 0x1b is timer/control status register 3
-comment C1CB  0x1c is the time constant register
-lcomment C1CD 0x11 is tx/rx control status register 1
-lcomment C1D0 Receive interrupt enable, receive enable, transmit enable
-lcomment C1D4 This reads TRCSR1, then RDR, which clears the
-comment C1D4  "Receive Data Register Full" bit in TRCSR1.
-comment C1D4  We previously set "Busy" on the SB9600 link, and
-comment C1D4  we're throwing away anything we got here, so this
-comment C1D4  should leave the link in a clean state.
-lcomment C1D6 Timer setup
-comment C1D6  0x0f is the timer status / control register
-lcomment C1D8 0x0d is the input capture register msb
-lcomment C1DA Seems like a pointer?
-lcomment C1DF Enable Output Compare Interrupt 1
-lcomment C1E2 Turn on interrupts
-lcomment C1E3 Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
-comment C1E3  At startup, this pin should be low, so the bus should
-comment C1E3  be held busy until now.
-lcomment C1E6 This should be in the code plug header
-comment C1E6  All available plugs have $13 here
-lcomment C1F7 Clears Timer Overflow flag.
-lcomment C1F9 Not clear what reading this here would do.
-comment C1F9  (Reading the ICR instead would clear the
-comment C1F9  Input Capture flag.  So is this a bug?)
-lcomment C1FB Enable the timer overflow interrupt
-lcomment C1FE Frob the watchdog
-lcomment C207 Disable serial receive interrupts
-lcomment C20D Re-enable serial receive interrupts
-lcomment C216 Disable serial Transmit Data Empty interrupts
-lcomment C21D Disable serial Transmit Data Empty interrupts
-lcomment C226 Frob the watchdog
-lcomment C241 Disable interrupts
-lcomment C242 Hang the radio
-lcomment C24C Disable serial interrupts
-lcomment C256 Inhibit interrupts
-lcomment C257 Fetch the current value of the Free Running Counter
-lcomment C25B Re-enable interrupts
-lcomment C25C Wait for free running counter to pass zero.
-comment C25C  One full cycle would be about 53ms.
-lcomment C264 This would add about 2.5ms to the previously noted start point.
-lcomment C269 I think this is "all output except pin 0: timer 1 input"
-lcomment C26D Port 6 is mostly audio ctl bus
-lcomment C26F set port 6 to all outs
-lcomment C277 So $83 bit $20 was previously on
-lcomment C279 #8 would be Port 6 Pin 3, or MPU pin 28, which is K9.4 Enable
-lcomment C298 squelch decision
-lcomment C2D4 This is a branch through a jump table
-lcomment C2DE seg000:loc_C2D8P ...
-comment C2DE  Disable receive interrupts on serial
-lcomment C2E4 Re-enable receive interrupts on serial
-lcomment C2E8 Frob the watchdog
-lcomment C30D jump if opcode < $07
-lcomment C30F get address
-lcomment C311 mask group
-lcomment C313 jump if broadcast
-lcomment C315 get our address
-lcomment C318 get our group
-lcomment C31A jump if group 0 (no group?)
-lcomment C31C full match for group/device address?
-lcomment C31F not for us, ignore it
-comment C31F  command is for us, process it
-lcomment C326 ignore unsupported opcode
-lcomment C32D This is a branch through a jump table
-lcomment C32F jump to opcode handler
-lcomment C332 Test "Busy In" (active low)
-lcomment C341 It appears the FRC is never _set_.
-comment C341  It is read in various places, often with bits
-comment C341  of math done on it, and comparisons.  I
-comment C341  suspect that means everything is done
-comment C341  relative to a previous read.
-lcomment C346 1.042 ms -- one character time at 9600 baud
-lcomment C34E So we are busy
-lcomment C354 Apparently protocol bytes can't be zero?
-lcomment C358 Protocol allows < 5 byte times for response to begin before
-comment C358  assuming lost or damaged transmission.
-lcomment C36A This is a branch through a jump table
-lcomment C372 Remember updated FRC value
-lcomment C374 Is this the timer for SB9600 turnaround wait / acks / &c?
-lcomment C37A seg000:loc_C4A3P ...
-lcomment C38F clear rx count
-lcomment C394 Serial Communications unit interrupt handler
-lcomment C396 Enable interrupts
-lcomment C3DF read byte
-lcomment C3E1 save in rx data buffer
-lcomment C3F6 crc good?
-lcomment C3F7 yes!
-comment C3F7  5 byte command with CRC error received
-lcomment C401 Clear /BUSY
-comment C416 
-lcomment C417 Disable interrupts
-lcomment C41A Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
-comment C42F  5 byte command with good CRC receved
-comment C43E 
-lcomment C446 Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
-comment C45E 
-lcomment C4A0 send byte
-comment C4B2  OCF (timer output compare) interrupt handler
-lcomment C4C4 Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
-lcomment C4C9 Test "Busy In" (active low)
-lcomment C4D7 get first byte of packet
-lcomment C4D9 start sending packet
-lcomment C4F5 Clear /BUSY
-lcomment C50C Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
-lcomment C517 jump to routine to set next timeout (saved previously)
-comment C519 
-lcomment C51B get our address
-lcomment C51E incb
-lcomment C51F incb
-lcomment C520 save first byte of packet sa address +2 (MPL???)
-lcomment C522 bra-relative
-comment C522 
-lcomment C524 ldab-extend
-lcomment C527 incb
-lcomment C528 save our address + 1 (DSP ???)
-lcomment C52A bra-relative
-comment C52A 
-lcomment C531 start sending packet
-lcomment C53F Test "Busy In" (active low)
-comment C542  Send byte in ACCB, return with interrupts disabled
-lcomment C544 Clear /BUSY
-lcomment C555 send byte
-lcomment C557 set carry ??
-comment C559  First level opcode handler jump table
+lcomment C000          Input MD5   : 678F8F35B4A2F44926AB67C3B64C4BD4
+comment C002 .The processor runs in MCU Mode 1.
+comment C002 .Memory map:
+comment C002 .R  - 0000-0027 - MCU I/O registers
+comment C002 .0028-003F - Empty
+comment C002 .RW - 0040-013F - On-board RAM
+comment C002 .013F-7FFF - Empty
+comment C002 .What does the processor do with external address lines below 0140?
+comment C002 .What does the processor do with accesses to 0028-003F?
+comment C002 .Any external addressing is mapped to 8000+ by the address decoding hardware.
+comment C002 .RW - 8000-BFFF - Code plug EEPROM
+comment C002 .R  - C000-FFFF - Firmware EPROM (might be writable with jumpers)
+comment C002 .I/O map (write-only):
+comment C002 .W  - 4000-4007 - Synthesizer registers (latch U503)
+comment C002 .W  - C000-C000 - Audio control bus register (latch U504)
+comment C002 .Audio control bus bit map:
+comment C002 .D0 - RX through de-emphasis filter (inverted at switch)
+comment C002 .D1 - RX flat                       (inverted)
+comment C002 .D2 - TX through splatter filter    (inverted)
+comment C002 .D3 - TX flat
+comment C002 .D4 - Preamp /WE                    (inverted, because /WE)
+comment C002 .D5 - Squelch LSB
+comment C002 .D6 - Squelch MSB
+comment C002 .D7 - Mic mute                      (inverted)
+comment C002 .-
+comment C002 .RAM usage
+comment C002 .0x49 Current squelch level 0-5
+comment C002 .M0043 Current Mode number
+comment C002 .-
+comment C002 .M0074 bits
+comment C002 . 0x10 PL disabled (set/cleared by RXPLIN)
+comment C002 .-
+comment C002 .M0075 bits default value on cold start = 0x82
+comment C002 . 0x80 ??
+comment C002 . 0x10 ??
+comment C002 . 0x08 ??
+comment C002 . 0x04 ??
+comment C002 . 0x02 PTT active   active low (set/cleared by SETBUT for PTT button)
+comment C002 . 0x01 PTT disabled (set/cleared by PTTINH)
+comment C002 .-
+comment C002 .M0076 bits
+comment C002 . 0x80 ??
+comment C002 . 0x40 Front / rear control head (??
+comment C002 . 0x20 PL disabled (set by RXPLIN)
+comment C002 . 0x08 ??
+comment C002 .-
+comment C002 .M0083 bits
+comment C002 . 0x10 Extender On ?
+comment C002 .-
+comment C002 .M0086 bits
+comment C002 . 0x80 configuration mode active (set by ENTBUT, cleared by EXTBUT)
+comment C002 . 0x40 ??
+comment C002 . 0x01 ??
+comment C002 .-
+comment C002 .M008D bits note: M008D and M008E are set from CP offset 0x14 initally
+comment C002 .-
+comment C002 . 0x80   
+comment C002 . 0x40   
+comment C002 . 0x20   
+comment C002 . 0x10   
+comment C002 . 0x08   
+comment C002 . 0x04   
+comment C002 . 0x02   
+comment C002 . 0x01   
+comment C002 .-
+comment C002 .M008E bits
+comment C002 . 0x80   
+comment C002 . 0x40   
+comment C002 . 0x20   
+comment C002 . 0x10   
+comment C002 . 0x08   
+comment C002 . 0x04   
+comment C002 . 0x02   
+comment C002 . 0x01   
+comment C002 .-
+comment C002 .M00BF bits
+comment C002 . 0x08 ??
+comment C002 . 0x04 PTT disabled (set/cleared by PTTINH)
+comment C002 . 0x02 ??
+comment C002 .-
+comment C002 .BUSYFLAGS1 bits (0x88)
+comment C002 .0x20 = MEMACS received, only MEMADD, MEMFRA, and DEVJSR commands allowed
+comment C002 .0x08 = sending serial data
+comment C002 .-
+lcomment C040       Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
+lcomment C043       Enable on-chip RAM, leave standby
+lcomment C046       Initialize stack pointer to top of RAM
+lcomment C049       Make port 6 all output (two bytes though?)
+lcomment C04C          Does this set pin 2 high on PORT6 at the same time due to word write?
+comment C04E .Pin 2 seems to be /DETECTOR MUTE
+lcomment C051          Make Port 5 pin 2 an output
+lcomment C055          Set i/o directions for RAM / Processor control
+lcomment C059          Set i/o directions for clock/timer port
+lcomment C05D          Seems to set noDeEmph+noFlat+noSplatter+Preamp/WE+Squelch=11+MicMute
+lcomment C05F       Initialize audio control bus
+comment C062 .(_Writes_ to C000 are actually i/o, not memory)
+lcomment C068          Clear memory from 0x5F to 0x140
+lcomment C06E          Clear memory from 0x5F to 0x140
+lcomment C070       Frob the watchdog.  It doesn't seem to matter what you write to address 2
+comment C073 .of the synthesizer, which is probably why this set of addresses was chosen.
+comment C073 .The A3 bit turns into strobe.  Thus we set <something> into A2, then set
+comment C073 .it again with strobe, then clear strobe.
+lcomment C079       Calculates the simple sum of the entire firmware ROM except for the first
+comment C07C .two bytes, i.e. C002-FFFF.  Result is checked by the caller.  It appears
+comment C07C .that the loop can run long enough to sum about 1024 bytes before needing
+comment C07C .to frob the watchdog.  The manual says the watchdog is supposed to be
+comment C07C .reset every 20ms or so, and that if the count hits 30ms, the 'dog resets
+comment C07C .the radio.
+lcomment C082       Error code 81 is one of the "bad eeprom" codes
+lcomment C085       Checksum of code plug rom
+lcomment C093       Error code 82 is one of the "bad eeprom" codes
+lcomment C096       Frob watchdog
+lcomment C0A2          Test RAM from 0x5F to 0x140.  In the process, exercise the ALU a bit.
+lcomment C0AB       Error code 88 is "bad cpu"
+lcomment C0B5       Error code 88 is "bad cpu"
+lcomment C0BE       Frob watchdog
+lcomment C0C7          Do additional initialization of processor, and of memory data structures
+comment C0C9 .Fetch RAM/Port 5 Control Register
+lcomment C0C9          High bit of this port indicates whether standby
+comment C0CB .power has been supplied (bit=1), in which case
+comment C0CB .this isn't a coldstart.
+lcomment C0CE          0x40-41 gets initialized later.  If it's already
+comment C0D0 .full of 0xA55A, then coldstart has run before.
+lcomment C0D2       0xA0 seems to be the error code storage location
+comment C0D5 .All the error codes seem to include the 0x80 bit
+lcomment C0D5          So we found a fault during test
+lcomment C0D7          Check that the current squelch level is < 5
+lcomment C0DD       Observed to contain $20 in 2k, $40 in 8x code plugs
+comment C0E0 .Max mode number?
+lcomment C0E0       Apparently all of these locations should be > 0 and < ??max mode #??
+comment C0E3 .Current mode number of 0 means uninitialized
+lcomment C0E5          Current mode number > max mode means uninitialized
+lcomment C0E9       ??? of 0 means uninitialized (related to mode numbers)
+lcomment C0EE          ??? > max mode number means uninitialized
+lcomment C0F2          ??? > max mode number means uninitialized
+lcomment C0F6          ??? > max mode number means uninitialized
+lcomment C0FA       Initial mode to select in code plug header
+lcomment C0FF          This test is weird, seems like $48 would have to contain a mode
+comment C101 .number higher that the "initial" for this to be uninitialized.
+lcomment C101          We passed all the validity checks
+lcomment C103             Radio didn't pass at least some of its "setup is valid" checks, so do full initialization
+comment C104 .Clear some fields
+lcomment C104          The 0x4_ range seems to be code plug data.
+lcomment C10F          Clear 0x4F to 0x5F
+lcomment C115          Clear 0x4F to 0x5F
+lcomment C11B       Initial mode number to select, from code plug header
+lcomment C124       This should be in the code plug header
+lcomment C129       get default squelch level from CP
+lcomment C12C          save as current squelch level
+lcomment C12E       This should be in the code plug header
+lcomment C140       Set "standby power was provided" flag
+comment C143 .Do we use this as a "loaded mode data is valid" flag?
+lcomment C143       Set the "radio was initialized" pattern
+lcomment C148       Radio passed all validity checks, so we don't need to do some of the initialization.
+comment C14B .-or-
+comment C14B .We fell through from the coldstart setups and continue with the warmstart ones.
+lcomment C164          get current squelch level
+lcomment C170       Calculate memory offset of current mode entry in code plug
+comment C173 .Uses $77 as source, $A1 as destination
+lcomment C173       Calculate memory offset of current mode entry in code plug
+comment C176 .Uses $43 as source, $A3 as destination
+lcomment C17A       This should be in the code plug header
+lcomment C17F       This should be in the code plug header
+lcomment C187       This bit doesn't seem to get set until later
+comment C18A .So what condition are we testing for here?
+lcomment C18C       Ditto the bottom two bits
+lcomment C194       Are we in test mode? (jumper installed)
+lcomment C199       Maybe stash the status of test mode in $BF?
+lcomment C19F       Frob the watchdog
+lcomment C1A8       This should be in the code plug header
+lcomment C1AB       Seems to calculate ((b//5)\*6) + (b%5)
+lcomment C1B0       This should be in the code plug header
+lcomment C1B3       Seems to calculate ((b//5)\*6) + (b%5)
+lcomment C1B8       Frob the watchdog
+lcomment C1C1       This routine seems to build bitmaps of bytes on even zero and eight offsets
+comment C1C4 .from the beginning of the code plug which have bits $80 or $40 set.  256 bytes
+comment C1C4 .are scanned, so four bytes are used for each bitmap.
+lcomment C1C4          Serial comms setup
+comment C1C6 ."Use T1FRC for baud", but the timer setup below seems
+comment C1C6 .to suggest that Timer 2 TCONR is actually used.  Does
+comment C1C6 .the SS2 bit get or'ed in later?
+comment C1C6 .8bit, async, internal clock, port2 pin2 is clock output
+lcomment C1C8       timer 2 enab, output 1, clock=E/8
+comment C1CB .time constant 0x60
+comment C1CB .This time constant would seem to work out to
+comment C1CB .around 2,560 bps if it's used for the serial bus.
+lcomment C1CB          0x1b is timer/control status register 3
+comment C1CD .0x1c is the time constant register
+lcomment C1CD       0x11 is tx/rx control status register 1
+lcomment C1D0          Receive interrupt enable, receive enable, transmit enable
+lcomment C1D4          This reads TRCSR1, then RDR, which clears the
+comment C1D6 ."Receive Data Register Full" bit in TRCSR1.
+comment C1D6 .We previously set "Busy" on the SB9600 link, and
+comment C1D6 .we're throwing away anything we got here, so this
+comment C1D6 .should leave the link in a clean state.
+lcomment C1D6          Timer setup
+comment C1D8 .0x0f is the timer status / control register
+lcomment C1D8          0x0d is the input capture register msb
+lcomment C1DA       Seems like a pointer?
+lcomment C1DF       Enable Output Compare Interrupt 1
+lcomment C1E2             Turn on interrupts
+lcomment C1E3       Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+comment C1E6 .At startup, this pin should be low, so the bus should
+comment C1E6 .be held busy until now.
+lcomment C1E6       This should be in the code plug header
+comment C1E9 .All available plugs have $13 here
+lcomment C1F7          Clears Timer Overflow flag.
+lcomment C1F9          Not clear what reading this here would do.
+comment C1FB .(Reading the ICR instead would clear the
+comment C1FB .Input Capture flag.  So is this a bug?)
+lcomment C1FB       Enable the timer overflow interrupt
+lcomment C1FE       Frob the watchdog
+lcomment C207       Disable serial receive interrupts
+lcomment C20D       Re-enable serial receive interrupts
+lcomment C216          Disable serial Transmit Data Empty interrupts
+lcomment C21D       Disable serial Transmit Data Empty interrupts
+lcomment C226       Frob the watchdog
+lcomment C241             Disable interrupts
+lcomment C242          Hang the radio
+lcomment C24C       Disable serial interrupts
+lcomment C256             Inhibit interrupts
+lcomment C257          Fetch the current value of the Free Running Counter
+lcomment C25B             Re-enable interrupts
+comment C25C .-
+lcomment C25C          Wait for free running counter to pass zero.
+comment C25E .One full cycle would be about 53ms.
+lcomment C264       This would add about 2.5ms to the previously noted start point.
+lcomment C269          I think this is "all output except pin 0: timer 1 input"
+lcomment C26D          Port 6 is mostly audio ctl bus
+lcomment C26F          set port 6 to all outs
+lcomment C277          So $83 bit $20 was previously on
+lcomment C279       #8 would be Port 6 Pin 3, or MPU pin 28, which is K9.4 Enable
+lcomment C298       squelch decision
+lcomment C2C8       note: the first entry skipped so table really starts at C5DF
+lcomment C2D6          call routine via table
+comment C2DE .-
+lcomment C2DE       Disable receive interrupts on serial
+lcomment C2E4       Re-enable receive interrupts on serial
+lcomment C2E8       Frob the watchdog
+comment C2FF .-
+lcomment C30D          jump if opcode < $07
+lcomment C30F          get address
+lcomment C311          mask group
+lcomment C313          jump if broadcast
+lcomment C315       get our address
+lcomment C318          get our group
+lcomment C31A          jump if group 0 (no group?)
+lcomment C31C             full match for group/device address?
+lcomment C31F             not for us, ignore it
+comment C320 .command is for us, process it
+lcomment C326          ignore unsupported opcode
+lcomment C32F          jump to opcode handler
+comment C332 .-
+lcomment C332       Test "Busy In" (active low)
+lcomment C341          It appears the FRC is never _set_.
+comment C343 .It is read in various places, often with bits
+comment C343 .of math done on it, and comparisons.  I
+comment C343 .suspect that means everything is done
+comment C343 .relative to a previous read.
+lcomment C346       1.042 ms -- one character time at 9600 baud
+lcomment C34E             So we are busy
+lcomment C352          get bit map ??
+lcomment C354          If any bit is set then jump to a handler based on
+lcomment C356             The bitmap
+lcomment C358          Protocol allows < 5 byte times for response to begin before
+comment C35A .assuming lost or damaged transmission.
+comment C35D .A = bitmap, B number  jump to routne based on B\*16 and the first bit set in A
+comment C35D .scanning from the MSB
+lcomment C35D       Jump table base
+lcomment C360             \* 2
+lcomment C361             \* 4
+lcomment C362             \* 8
+lcomment C363             \* 16
+comment C365 .search for first bit set in A and then jump to the corresponding routine
+lcomment C365             skip entry
+lcomment C36A          get routine address
+lcomment C36C          jump to it
+comment C36E .-
+lcomment C372          Remember updated FRC value
+lcomment C374          Is this the timer for SB9600 turnaround wait / acks / &c?
+lcomment C37A             seg000:loc_C4A3P ...
+lcomment C38F          clear rx count
+lcomment C394          Serial Communications unit interrupt handler
+lcomment C396             Enable interrupts
+lcomment C3DF          read byte
+lcomment C3E1          save in rx data buffer
+lcomment C3F6             crc good?
+lcomment C3F7          yes!
+comment C3F9 .5 byte command with CRC error received
+lcomment C401       Clear /BUSY
+comment C417 .-
+lcomment C417             Disable interrupts
+lcomment C41A       Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+comment C430 .5 byte command with good CRC receved
+comment C440 .-
+lcomment C446       Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+comment C45F .-
+lcomment C4A0          send byte
+comment C4B4 .OCF (timer output compare) interrupt handler
+lcomment C4C4       Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+lcomment C4C9       Test "Busy In" (active low)
+lcomment C4D7          get first byte of packet
+lcomment C4D9       start sending packet
+lcomment C4F5       Clear /BUSY
+lcomment C50C       Set SB9600 "/BUSY" output on port2 pin2 (cpu pin 10)
+lcomment C517          jump to routine to set next timeout (saved previously)
+comment C51B .-
+lcomment C51B       get our address
+lcomment C51E             incb
+lcomment C51F             incb
+lcomment C520          save first byte of packet sa address +2 (MPL???)
+lcomment C522          bra-relative
+comment C524 .-
+lcomment C524       ldab-extend
+lcomment C527             incb
+lcomment C528          save our address + 1 (DSP ???)
+lcomment C52A          bra-relative
+comment C52C .-
+lcomment C531          start sending packet
+lcomment C53F       Test "Busy In" (active low)
+comment C544 .Send byte in ACCB, return with interrupts disabled
+lcomment C544       Clear /BUSY
+lcomment C555          send byte
+lcomment C557             set carry ??
+comment C55A .First level opcode handler jump table
 lcomment C55A This is a branch table referenced via X from 0xC320
-comment C562 0x08
-comment C572 0x10
-comment C592 0x20
-comment C5B2 0x30
-comment C5DE 
-lcomment C729 set port 6 to all inputs
-lcomment C747 FUNCTION CHUNK AT C733 SIZE 0000000F BYTES
-lcomment C74C Calculates the simple sum of the entire firmware ROM except for the first
-comment C74C  two bytes, i.e. C002-FFFF.  Result is checked by the caller.  It appears
-comment C74C  that the loop can run long enough to sum about 1024 bytes before needing
-comment C74C  to frob the watchdog.  The manual says the watchdog is supposed to be
-comment C74C  reset every 20ms or so, and that if the count hits 30ms, the 'dog resets
-comment C74C  the radio.
-comment C74C  Start of contents to test seems to be C002
-lcomment C74F End address of first block to test
-lcomment C75B ROMCKSUM+2Dj
-comment C75B  Resulting sum checked by caller
-lcomment C761 Resulting sum checked by caller
-lcomment C765 Frob watchdog?
-lcomment C770 Next 1024 bytes...
-lcomment C779 Resulting sum checked by caller
-lcomment C77B End of function ROMCKSUM
-lcomment C77C Checksum of code plug rom
-comment C77C  Observed values for first two bytes of a
-comment C77C  code plug are 0x07ff (2047) and 0x1fff
-comment C77C  (8191).  First bytes of FFFF seem to mean
-comment C77C  a bad ROM (reading "nothing there" would
-comment C77C  return FF bytes, right?), and we branch
-comment C77C  to code which further refines that diagnosis.
-lcomment C77F Now we should have 0x0800, 0x2000, or 0x0000.
-lcomment C780 If we got 0xFFFF, go refine diagnosis
-lcomment C783 Now we should have 0x8800 or 0xa000.
-lcomment C786 Not clear how this would ever see nonzero.
-comment C786  Guessing this is a way to further check
-comment C786  ROM size -- if low-order byte is not FF
-comment C786  (now incremented, so 0x00) then something
-comment C786  is scrambled?  This means the code works
-comment C786  for ROM sizes other than 2x16 and 2x64.
-lcomment C789 All observed inputs would lead to 0 and no branch.
-comment C789  Again, guessing this check against the high-order
-comment C789  byte of the size is done this way to allow
-comment C789  ROMs larger than 2x16 and 2x64.
-lcomment C78D Otherwise, end location is in D and can
-comment C78D  be passed to ROMCKSUM.
-lcomment C78F End of first cycle is 0x8200
-lcomment C794 Start of first cycle is 0x8004 (i.e. don't
-comment C794  sum the size and expected sum)
-lcomment C797 ... And we re-use the firmware checksum routine
-lcomment C799 PLUGCK+Bj ...
-comment C799  Ultimate end will be 0xA000
-lcomment C79E End of the first set will be 0x8100
-lcomment C7A3 Start scan at 0x8000
-lcomment C7A6 We'll search for non-0xFF
-lcomment C7A8 PLUGCK+4Bj
-comment C7A8  Find non-FF
-lcomment C7AA Error code 82 is one of the "bad eeprom" codes
-lcomment C7AF Find non-FF
-lcomment C7B2 Frob watchdog?
-lcomment C7BF Move goalpost for next set
-lcomment C7C7 Find non-FF
-lcomment C7C9 At this point, the ROM space is totally blank (all 0xff).
-comment C7C9  Error code 84 is one of the "bad eeprom" codes
-lcomment C7CD Error code 82 is one of the "bad eeprom" codes
-lcomment C7D0 End of function PLUGCK
-lcomment C7D1 This routine seems to build bitmaps of bytes on even zero and eight offsets
-comment C7D1  from the beginning of the code plug which have bits $80 or $40 set.  256 bytes
-comment C7D1  are scanned, so four bytes are used for each bitmap.
-lcomment C7DF Outer loop counter
-lcomment C7E3 Memory stride for below?
-lcomment C7E5 Start address of code plug
-lcomment C7E8 Inner loop counter
-lcomment C7EA We're going to shift a 0 bit in during a later ROL.
-lcomment C7EB First pass, this points to code plug header
-comment C7EB  (If $80 bit is set, the plug shouldn't be valid
-comment C7EB  according to my current understanding?  $40
-comment C7EB  and $20 occur in available code plugs at $08.)
-lcomment C7F1 First time, should test $8000
-lcomment C7F6 Otherwise, we're going to shift a 1 bit in during a later ROL
-lcomment C7F7 We appear to get here if the plug has the $40 bit set in its first byte.
-comment C7F7  This bit isn't set in any of the available factory codeplugs.
-lcomment C7F9 First time, should ROL $0066
-lcomment C7FE We appear to get here if the plug has the $80 bit set in its first byte.
-comment C7FE  The only two known valid values do not have this bit set.
-lcomment C800 First iteration, it should ROL $0066
-lcomment C803 First time, this should ROL $0062
-lcomment C806 Add 8, as set above, so after first ABX it should be $8008
-lcomment C807 Count down from 8, as set above
-lcomment C80A Increment pointer
-lcomment C80D Decrement outer loop counter
-lcomment C81C set MSB of routine address to 3
-lcomment C83F Seems to calculate ((b//5)\*6) + (b%5)
-comment C89C handle VOLVAL opcode
-lcomment C8DD start sending packet
-comment C8F1  handle SQLVAL opcode
-comment C917 opcode_ACTMDW activate a mode
-lcomment C91A mask D1, D2
-lcomment C91C ignore if neither are set
-lcomment C931 Calculate memory offset of current mode entry in code plug
-comment C931  Uses $77 as source, $A1 as destination
-comment C93D 
-comment C941  handle RXAUD opcode
-comment C967 handle TXAUD opcode
-comment C9BB  handle DISMUT opcode
-comment C9C8  handle PTTINH opcode
-lcomment C9C9 PTT disable?
-lcomment C9CC jump if not
-lcomment C9CE set b3
-lcomment C9D1 set b1
-lcomment C9D5 clear b3
-lcomment C9D8 clear b1
-comment C9DB  handle RXPLIN opcode
-comment C9EE  handle REVINH opcode
-lcomment CA04 set PTT bit (PTT inactive)
-lcomment CA08 clear PTT bit (PTT active)
-comment CA2B  handle ALRTTN opcode
-comment CA92  handle RPTDIR opcode
-comment CAB3  Handle MEMACS (0x08) opcode
-lcomment CABA get address field
-lcomment CABE address == radio ?
-lcomment CAC0 jump if so
-lcomment CAC2 our address?
-comment CADC  address matched
-lcomment CADE set programming mode flag
-lcomment CAE6 get address of timer update
-lcomment CAE9 save
-lcomment CAEB set port 6 to all inputs
-lcomment CAF2 Seems to set RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment CAF4 The processor runs in MCU Mode 1.
-comment CAFD 
-comment CB13  handle MEMADD opcode
-lcomment CB15 programming mode?
-lcomment CB18 ignore if not
-lcomment CB1A B/R set?
-lcomment CB1D jump if read command
-comment CB1D  MEMADD write
-lcomment CB1F get address
-lcomment CB21 data to write
-lcomment CB23 write it!
-comment CB25  MEMADD read
-lcomment CB26 get MSB of address
-lcomment CB28 save it in reply
-lcomment CB2A start sending packet
-lcomment CB2D get LSB of address
-lcomment CB2F save it in reply
-lcomment CB31 get address to read
-lcomment CB33 read byte
-lcomment CB35 save it
-lcomment CB37 memadd opcode
-lcomment CB39 save it
-comment CB3B  handle
-comment CB5B  handle VOLMIN opcode
-comment CB6B  handle ETONOF (extender on/off) opcode
-lcomment CB6C get D1, D2
-comment CB6E Either D1 or D2 must be set whenever an option Broadcasts this opcode.
-comment CB6E When both D1 and D2 are cleared, the Extender is updated to the radio
-lcomment CB72 move D1, D2 into upper nibble
-lcomment CB7D Extender on?
-lcomment CB80 jump if so
-lcomment CB82 clear b4
-comment CB85 
-lcomment CB86 set b4
-comment CB89 
-comment CB8D handle DEVJSR opcode
-lcomment CB8F get address
-lcomment CB99 jump if not for us
-lcomment CB9B get address of routine from message
-lcomment CB9D jump to it!
-comment CB9F 
-comment CC5B  handle ACRXPL opcode
-comment CC80  handle ACTXPL opcode
-comment CCC5  handle OPTSTS opcode
-lcomment CCE4 start sending packet
-comment CCEB  used by entries for opcodes SHOBUT, SETBUT, INCBUT, DECBUT, DELBUT and RCLBUT
-comment CCEB  in the first level opcode code table
-lcomment CCEC get address
-lcomment CCEE mask device address
-lcomment CCF2 jump if not broadcast, radio, dsp, or mpl
-lcomment CCF4 \* 2
-lcomment CCF5 \* 4
-lcomment CCF6 \* 8
-lcomment CCF7 b = device address \* 16
-lcomment CCFA button # < 16 ?
-lcomment CCFC ignore button if not
-lcomment CCFE add button number
-lcomment CD07 jump to handler for this opcode/button
-comment CD07 
-comment CD09  handle ENTBUT opcode
-comment CD0D  handle EXTBUT opcode
-comment CD12  Second level opcode code handler jump table
-comment CD12  used for SHOBUT, SETBUT, INCBUT, DECBUT, DELBUT and RCLBUT
-comment CD12  indexed by button number (device adr \* 16) + button number
-comment CD12 
-comment CD12  device address == 0 broadcast
-lcomment CD14 This is a jump table
-comment CD2C  device address == 1 radio
-comment CD4C  device address == 2 DSP
-comment CD6C  device address == 3 MPL
-comment CD94  device address == 4 Internal radio options
-comment CDAC  button handler for HUB addressed to broadcast
-comment CDC5  button handler for ignition sense addressed to broadcast
-comment CDD7  button handler for PTT addressed to broadcast
-lcomment CDDA SETBUT ?
-lcomment CDDC ignore if not
-lcomment CDE1 On ?
-lcomment CDE4 ignore if not
-lcomment CDE6 set bit 2 LOW
-comment CDE9  button handler for front/rear control addressed to broadcast
-lcomment CDEA get DATA2 and opcode
-comment CDFF  button handler for MODE sent to RADIO address
-lcomment CE00 get DATA2 and opcode
-lcomment CE02 in configuration or ??? mode
-lcomment CE05 jump if so
-lcomment CE0C get DATA2 and opcode
-lcomment CE4D Calculate memory offset of current mode entry in code plug
-comment CE4D  Uses $43 as source, $A3 as destination
-comment CE6A  button handler for volume sent to RADIO adr
-lcomment CE6B get DATA2 and opcode
-comment CED2  button handler for squelch sent to RADIO Adr
-lcomment CED4 get DATA2 and opcode
-lcomment CED6 SHOBUT?
-lcomment CEDA SETBUT ?
-lcomment CEDE INCBUT ?
-lcomment CEE2 CBUT ?
-lcomment CEE6 ENTBUT ?
-lcomment CEEA EXTBUT ?
-comment CEEE  handle SETBUT squelch sent to RADIO
-lcomment CEEF TA2 < 5 ?
-lcomment CEF1 jump if so and save it
-lcomment CEF9 get current squelch level
-lcomment CF02 get current squelch level
-lcomment CF07 save current squelch level
-lcomment CF1B get current squelch level
-comment CF22 
-lcomment CF29 get DATA2 and opcode
-lcomment CF32 calculate mode adr in EEPROM
-lcomment CF49 get DATA2 and opcode
-lcomment CF6B get DATA2 and opcode
-lcomment CF97 get DATA2 and opcode
-lcomment CFA0 calculate mode adr in EEPROM
-lcomment CFB2 get DATA2 and opcode
-lcomment CFEB Calculate memory offset of current mode entry in code plug
-comment CFEB  Uses $43 as source, $A3 as destination
-lcomment D009 get DATA2 and opcode
-lcomment D078 get DATA2 and opcode
-lcomment D0B5 get DATA2 and opcode
-lcomment D0BD ???
-lcomment D0E7 get DATA2 and opcode
-lcomment D391 get DATA2 and opcode
-lcomment D3C3 get DATA2 and opcode
-lcomment D3CC calculate mode adr in EEPROM
-lcomment D3E1 calculate mode adr in EEPROM
-lcomment D3F3 get DATA2 and opcode
-lcomment D421 get DATA2 and opcode
-lcomment D5A1 calculate mode adr in EEPROM
-lcomment D5C6 calculate mode adr in EEPROM
-comment D678 
-lcomment D682 PTT disabled ?
-lcomment D685 jump if so
-lcomment D762 get current squelch level
-lcomment D91D ptt active?
-lcomment D920 jump if not
-lcomment DCB1 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment DCB9 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment DCC4 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment DCF0 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment DCF5 Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment DCF7 The processor runs in MCU Mode 1.
-comment DCF7  Memory map -
-comment DCF7  R  - 0000-0027 - MCU I/O registers
-comment DCF7  0028-003F - Empty
-comment DCF7  RW - 0040-013F - On-board RAM
-comment DCF7  013F-7FFF - Inaccessible
-comment DCF7  RW - 8000-BFFF - Code plug EEPROM
-comment DCF7  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
-comment DCF7  I/O map -
-comment DD01 
-lcomment DD83 The processor runs in MCU Mode 1.
-comment DD83  Memory map -
-comment DD83  R  - 0000-0027 - MCU I/O registers
-comment DD83  0028-003F - Empty
-comment DD83  RW - 0040-013F - On-board RAM
-comment DD83  013F-7FFF - Inaccessible
-comment DD83  RW - 8000-BFFF - Code plug EEPROM
-comment DD83  R  - C000-FFFF - Firmware EPROM - May be writable with jumpers
-comment DD83  I/O map -
-lcomment DDB3 Test "K9.4 Enable"
-lcomment DDB7 So $8D, $85 and $80 know something relevant to "K9.4 Enable"?
-lcomment DDE6 squelch decision
-lcomment DE87 jump if bit 0x40 (tx pl or dpl) or 1 are set  ???
-lcomment DE95 PTT disabled ?
-lcomment DEA1 PTT disabled ?
-comment DF7B 
-comment DF9A 
-comment DFC3 
-lcomment E006 calculate mode adr in EEPROM
-lcomment E011 get Tx pl/dpl byte
-lcomment E025 calculate mode adr in EEPROM
-lcomment E03A calculate mode adr in EEPROM
-lcomment E071 calculate mode adr in EEPROM
-lcomment E09D calculate mode adr in EEPROM
-lcomment E0E0 calculate mode adr in EEPROM
-lcomment E11E get current squelch level
-lcomment E136 clear PTT bit (PTT active)
-comment E139 
-lcomment E193 Calculate memory offset of current mode entry in code plug
-comment E193  Uses $77 as source, $A1 as destination
-lcomment E266 calculate mode adr in EEPROM
-lcomment E27E calculate mode adr in EEPROM
-lcomment E35C Port 6 Bit 3 is "K9.4 Enable"
-comment E36C set MODEADDR77 to the address of the current mode
-lcomment E36D Calculate memory offset of current mode entry in code plug
-comment E36D  Uses $77 as source, $A1 as destination
-comment E36D  Fetch current mode number
-lcomment E370 Fetch mode entry size in bytes
-lcomment E374 Offset to beginning of mode entries in code plug
-lcomment E379 End of function SETUPMODEADDR77
-comment E379 
-lcomment E37A Calculate memory offset of current mode entry in code plug
-comment E37A  Uses $43 as source, $A3 as destination
-comment E37A  Fetch current mode number
-lcomment E37D Fetch mode entry size in bytes
-lcomment E381 Offset to beginning of mode entries in code plug
-lcomment E386 End of function SETUPMODEADDR43
-comment E386 
-lcomment E38D Bus busy?
-comment E390 
-lcomment E397 Bus busy?
-comment E39A 
-lcomment E39C get two bytes of Syn bits
-lcomment E39E invert LSB
-lcomment E3A4 get upper nibble
-comment E3B7 
-comment E3BB 
-comment E3CC 
-comment E3D2 
-comment E3E9 
-lcomment E3EB PTT out low
-comment E3F4  Send 3 bytes to synthesizer chip
-lcomment E3F5 This sort of looks like moving code
-comment E3F5  plug bits to the divider / prescaler?
-lcomment E3F7 write with strobe low (A3)
-lcomment E3FA write again with strobe high
-lcomment E3FD and once more write with strobe low
-lcomment E42F clear bit 4
-comment E44C 
-lcomment E44D FUNCTION CHUNK AT E3F5 SIZE 00000058 BYTES
-comment E459 
-lcomment E45B FUNCTION CHUNK AT E4F7 SIZE 00000042 BYTES
-comment E45B  FUNCTION CHUNK AT E559 SIZE 0000002C BYTES
-lcomment E489 calculate mode adr in EEPROM
-lcomment E4CD Is this the SB9600 "encrypted address / data" decoder?
-lcomment E539 Is this the SB9600 "encrypted address / data" decoder?
-lcomment E59C calculate mode adr in EEPROM
-lcomment FFE8 Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
-lcomment FFF0 01 manual says SCI (RDRF+ORFE+TDRE), i.e. UART
-lcomment FFF2 01 manual says TOF (timer overflow)
-lcomment FFF4 01 manual says OCF (timer output compare)
-lcomment FFF6 01 manual says ICF (timer input compare)
-lcomment FFFE Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
+comment C56A .0x08
+comment C57A .0x10
+comment C59A .0x20
+comment C5BA .0x30
+comment C5DF .-
+comment C5ED .jump table
+comment C716 .heart beat interrupt (timer overflow)
+lcomment C729       set port 6 to all inputs
+lcomment C747       FUNCTION CHUNK AT C733 SIZE 0000000F BYTES
+lcomment C74C       Calculates the simple sum of the entire firmware ROM except for the first
+comment C74F .two bytes, i.e. C002-FFFF.  Result is checked by the caller.  It appears
+comment C74F .that the loop can run long enough to sum about 1024 bytes before needing
+comment C74F .to frob the watchdog.  The manual says the watchdog is supposed to be
+comment C74F .reset every 20ms or so, and that if the count hits 30ms, the 'dog resets
+comment C74F .the radio.
+comment C74F .Start of contents to test seems to be C002
+lcomment C74F       End address of first block to test
+lcomment C75B          ROMCKSUM+2Dj
+comment C75D .Resulting sum checked by caller
+lcomment C761          Resulting sum checked by caller
+lcomment C765       Frob watchdog?
+lcomment C770       Next 1024 bytes...
+lcomment C779          Resulting sum checked by caller
+lcomment C77B             End of function ROMCKSUM
+lcomment C77C       Checksum of code plug rom
+comment C77F .Observed values for first two bytes of a
+comment C77F .code plug are 0x07ff (2047) and 0x1fff
+comment C77F .(8191).  First bytes of FFFF seem to mean
+comment C77F .a bad ROM (reading "nothing there" would
+comment C77F .return FF bytes, right?), and we branch
+comment C77F .to code which further refines that diagnosis.
+lcomment C77F             Now we should have 0x0800, 0x2000, or 0x0000.
+lcomment C780          If we got 0xFFFF, go refine diagnosis
+lcomment C783       Now we should have 0x8800 or 0xa000.
+lcomment C786             Not clear how this would ever see nonzero.
+comment C787 .Guessing this is a way to further check
+comment C787 .ROM size -- if low-order byte is not FF
+comment C787 .(now incremented, so 0x00) then something
+comment C787 .is scrambled?  This means the code works
+comment C787 .for ROM sizes other than 2x16 and 2x64.
+lcomment C789          All observed inputs would lead to 0 and no branch.
+comment C78B .Again, guessing this check against the high-order
+comment C78B .byte of the size is done this way to allow
+comment C78B .ROMs larger than 2x16 and 2x64.
+lcomment C78D          Otherwise, end location is in D and can
+comment C78F .be passed to ROMCKSUM.
+lcomment C78F       End of first cycle is 0x8200
+lcomment C794       Start of first cycle is 0x8004 (i.e. don't
+comment C797 .sum the size and expected sum)
+lcomment C797          And we re-use the firmware checksum routine
+lcomment C799       PLUGCK+Bj ...
+comment C79C .Ultimate end will be 0xA000
+lcomment C79E       End of the first set will be 0x8100
+lcomment C7A3       Start scan at 0x8000
+lcomment C7A6          We'll search for non-0xFF
+lcomment C7A8          PLUGCK+4Bj
+comment C7AA .Find non-FF
+lcomment C7AA          Error code 82 is one of the "bad eeprom" codes
+lcomment C7AF          Find non-FF
+lcomment C7B2       Frob watchdog?
+lcomment C7BF       Move goalpost for next set
+lcomment C7C7          Find non-FF
+lcomment C7C9       At this point, the ROM space is totally blank (all 0xff).
+comment C7CC .Error code 84 is one of the "bad eeprom" codes
+lcomment C7CD       Error code 82 is one of the "bad eeprom" codes
+lcomment C7D0             End of function PLUGCK
+lcomment C7D1             This routine seems to build bitmaps of bytes on even zero and eight offsets
+comment C7D2 .from the beginning of the code plug which have bits $80 or $40 set.  256 bytes
+comment C7D2 .are scanned, so four bytes are used for each bitmap.
+lcomment C7DF          Outer loop counter
+lcomment C7E3          Memory stride for below?
+lcomment C7E5       Start address of code plug
+lcomment C7E8          Inner loop counter
+lcomment C7EA             We're going to shift a 0 bit in during a later ROL.
+lcomment C7EB       First pass, this points to code plug header
+comment C7EE .(If $80 bit is set, the plug shouldn't be valid
+comment C7EE .according to my current understanding?  $40
+comment C7EE .and $20 occur in available code plugs at $08.)
+lcomment C7F1       First time, should test $8000
+lcomment C7F6             Otherwise, we're going to shift a 1 bit in during a later ROL
+lcomment C7F7          We appear to get here if the plug has the $40 bit set in its first byte.
+comment C7F9 .This bit isn't set in any of the available factory codeplugs.
+lcomment C7F9          First time, should ROL $0066
+lcomment C7FE          We appear to get here if the plug has the $80 bit set in its first byte.
+comment C800 .The only two known valid values do not have this bit set.
+lcomment C800          First iteration, it should ROL $0066
+lcomment C803          First time, this should ROL $0062
+lcomment C806             Add 8, as set above, so after first ABX it should be $8008
+lcomment C807             Count down from 8, as set above
+lcomment C80A       Increment pointer
+lcomment C80D       Decrement outer loop counter
+lcomment C81C          set MSB of routine address to 3
+lcomment C83F             Seems to calculate ((b//5)\*6) + (b%5)
+comment C89F .handle VOLVAL opcode
+lcomment C8DD       start sending packet
+comment C8F2 .handle SQLVAL opcode
+comment C918 .opcode_ACTMDW activate a mode
+lcomment C91A          mask D1, D2
+lcomment C91C          ignore if neither are set
+lcomment C931       Calculate memory offset of current mode entry in code plug
+comment C934 .Uses $77 as source, $A1 as destination
+comment C93E .-
+comment C942 .handle RXAUD opcode
+comment C968 .handle TXAUD opcode
+comment C9BC .handle DISMUT opcode
+comment C9C9 .handle PTTINH opcode
+lcomment C9C9       PTT disable?
+lcomment C9CC          jump if not
+lcomment C9CE       set b3
+lcomment C9D1       set b1
+lcomment C9D5       clear b3
+lcomment C9D8       clear b1
+comment C9DC .handle RXPLIN opcode (i.e. carrier squelch, monitor button)
+comment C9EF .handle REVINH opcode
+lcomment CA04       set PTT bit (PTT inactive)
+lcomment CA08       clear PTT bit (PTT active)
+comment CA2C .handle ALRTTN opcode
+comment CA93 .handle RPTDIR opcode
+comment CAB5 .Handle MEMACS (0x08) opcode
+lcomment CABA          get address field
+lcomment CABE          address == radio ?
+lcomment CAC0          jump if so
+lcomment CAC2       our address?
+comment CADE .address matched
+lcomment CADE       set programming mode flag
+lcomment CAE6       get address of timer update
+lcomment CAE9          save
+lcomment CAEB       set port 6 to all inputs
+lcomment CAF2          Seems to set RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
+comment CAFE .-
+comment CB15 .handle MEMADD opcode
+lcomment CB15       programming mode?
+lcomment CB18          ignore if not
+lcomment CB1A       B/R set?
+lcomment CB1D          jump if read command
+comment CB1F .MEMADD write
+lcomment CB1F          get address
+lcomment CB21          data to write
+lcomment CB23          write it!
+comment CB26 .MEMADD read
+lcomment CB26          get MSB of address
+lcomment CB28          save it in reply
+lcomment CB2A       start sending packet
+lcomment CB2D          get LSB of address
+lcomment CB2F          save it in reply
+lcomment CB31          get address to read
+lcomment CB33          read byte
+lcomment CB35          save it
+lcomment CB37          memadd opcode
+lcomment CB39          save it
+comment CB3C .handle TXCTRL opccode
+comment CB5C .handle VOLMIN opcode
+comment CB6C .handle ETONOF (extender on/off) opcode
+lcomment CB6C          get D1, D2
+comment CB70 .Either D1 or D2 must be set whenever an option Broadcasts this opcode.
+comment CB70 .When both D1 and D2 are cleared, the Extender is updated to the radio
+lcomment CB72             move D1, D2 into upper nibble
+lcomment CB7D       Extender on?
+lcomment CB80          jump if so
+lcomment CB82       clear b4
+comment CB86 .-
+lcomment CB86       set b4
+comment CB8A .-
+comment CB8F .handle DEVJSR opcode
+lcomment CB8F          get address
+lcomment CB99          jump if not for us
+lcomment CB9B          get address of routine from message
+lcomment CB9D          jump to it!
+comment CBA0 .-
+comment CC5C .handle ACRXPL opcode
+comment CC81 .handle ACTXPL opcode
+comment CCC6 .handle OPTSTS opcode
+lcomment CCE4       start sending packet
+comment CCEC .used by entries for opcodes SHOBUT, SETBUT, INCBUT, DECBUT, DELBUT and RCLBUT
+comment CCEC .in the first level opcode code table
+lcomment CCEC          get address
+lcomment CCEE          mask device address
+lcomment CCF2          jump if not broadcast, radio, dsp, or mpl
+lcomment CCF4             \* 2
+lcomment CCF5             \* 4
+lcomment CCF6             \* 8
+lcomment CCF7             b = device address \* 16
+lcomment CCFA          button # < 16 ?
+lcomment CCFC          ignore button if not
+lcomment CCFE          add button number
+lcomment CD07          jump to handler for this opcode/button
+comment CD09 .-
+comment CD0A .handle ENTBUT opcode
+comment CD0F .handle EXTBUT opcode
+comment CD14 .Second level opcode code handler jump table
+comment CD14 .used for SHOBUT, SETBUT, INCBUT, DECBUT, DELBUT and RCLBUT
+comment CD14 .indexed by button number (device adr 
+comment CD14 .-
+comment CD14 .device address == 0 broadcast
+comment CD34 .device address == 1 radio
+comment CD54 .device address == 2 DSP
+comment CD74 .device address == 3 MPL
+comment CD9C .device address == 4 Internal radio options
+comment CDB4 .button handler for HUB addressed to broadcast
+comment CDC6 .button handler for ignition sense addressed to broadcast
+comment CDD8 .button handler for PTT addressed to broadcast
+lcomment CDDA          SETBUT ?
+lcomment CDDC          ignore if not
+lcomment CDDE       assume we are unkeying ?
+lcomment CDE1       were we ?
+lcomment CDE4          jump if so
+lcomment CDE6       set bit 2 LOW, we're keying up
+comment CDEA .button handler for front/rear control addressed to broadcast
+lcomment CDEA          get DATA2 and opcode
+comment CE00 .button handler for MODE sent to RADIO address
+lcomment CE00          get DATA2 and opcode
+lcomment CE02       in configuration or ??? mode
+lcomment CE05          jump if so
+lcomment CE0C          get DATA2 and opcode
+lcomment CE0E          SETBUT ?
+lcomment CE12          INCBUT ?
+lcomment CE16          DECBUT ?
+lcomment CE1A          EXTBUT ?
+lcomment CE1E          SHOBUT ?
+comment CE23 .Mode SETBUT or EXTBUT
+comment CE33 .Mode INCBUT
+comment CE3F .Mode DECBUT
+comment CE44 .Activate new mode
+lcomment CE44          save mode number
+lcomment CE4D       Calculate memory offset of current mode entry in code plug
+comment CE50 .Uses $43 as source, $A3 as destination
+comment CE6B .button handler for volume sent to RADIO adr
+lcomment CE6B          get DATA2 and opcode
+comment CED4 .button handler for squelch sent to RADIO Adr
+lcomment CED4          get DATA2 and opcode
+lcomment CED6          SHOBUT?
+lcomment CEDA          SETBUT ?
+lcomment CEDE          INCBUT ?
+lcomment CEE2          CBUT ?
+lcomment CEE6          ENTBUT ?
+lcomment CEEA          EXTBUT ?
+comment CEEF .handle SETBUT squelch sent to RADIO
+lcomment CEEF          TA2 < 5 ?
+lcomment CEF1          jump if so and save it
+lcomment CEF9          get current squelch level
+lcomment CF02          get current squelch level
+lcomment CF07          save current squelch level
+lcomment CF1B          get current squelch level
+comment CF23 .-
+lcomment CF29          get DATA2 and opcode
+lcomment CF32       calculate mode adr in EEPROM
+lcomment CF49          get DATA2 and opcode
+lcomment CF6B          get DATA2 and opcode
+lcomment CF97          get DATA2 and opcode
+lcomment CFA0       calculate mode adr in EEPROM
+lcomment CFB2          get DATA2 and opcode
+lcomment CFEB       Calculate memory offset of current mode entry in code plug
+comment CFEE .Uses $43 as source, $A3 as destination
+lcomment D009          get DATA2 and opcode
+lcomment D078          get DATA2 and opcode
+lcomment D0B5          get DATA2 and opcode
+lcomment D0BD       MPL for Rx?
+lcomment D0C0          return if not
+lcomment D0C5          return if not
+comment D0D4 .-
+comment D0E3 .-
+lcomment D0E7          get DATA2 and opcode
+lcomment D391          get DATA2 and opcode
+lcomment D3C3          get DATA2 and opcode
+lcomment D3CC       calculate mode adr in EEPROM
+lcomment D3E1       calculate mode adr in EEPROM
+lcomment D3F3          get DATA2 and opcode
+lcomment D421          get DATA2 and opcode
+comment D540 .-
+comment D578 .-
+comment D594 .-
+lcomment D5A1       calculate mode adr in EEPROM
+lcomment D5C6       calculate mode adr in EEPROM
+comment D679 .-
+lcomment D682       PTT disabled ?
+lcomment D685          jump if so
+lcomment D762          get current squelch level
+lcomment D91D       ptt active?
+lcomment D920          jump if not
+comment DA22 .-
+comment DA9D .table of pointers to another table
+lcomment DCB1          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
+lcomment DCB9          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
+lcomment DCC4          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
+lcomment DCF0          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
+lcomment DCF5          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
+comment DD02 .-
+lcomment DDB3          Test "K9.4 Enable"
+lcomment DDB7       So $8D, $85 and $80 know something relevant to "K9.4 Enable"?
+lcomment DDE6       squelch decision
+comment DDF5 .-
+lcomment DE87          jump if bit 0x40 (tx pl or dpl) or 1 are set  ???
+lcomment DE95       PTT disabled ?
+lcomment DEA1       PTT disabled ?
+comment DF7C .-
+comment DF9B .-
+comment DFC4 .-
+lcomment E006       calculate mode adr in EEPROM
+lcomment E011          get Tx pl/dpl byte
+lcomment E025       calculate mode adr in EEPROM
+lcomment E03A       calculate mode adr in EEPROM
+lcomment E071       calculate mode adr in EEPROM
+lcomment E09D       calculate mode adr in EEPROM
+lcomment E0E0       calculate mode adr in EEPROM
+lcomment E11E          get current squelch level
+lcomment E136       clear PTT bit (PTT active)
+comment E13A .-
+lcomment E193       Calculate memory offset of current mode entry in code plug
+comment E196 .Uses $77 as source, $A1 as destination
+lcomment E266       calculate mode adr in EEPROM
+lcomment E27E       calculate mode adr in EEPROM
+comment E35C .-
+lcomment E35C       Port 6 Bit 3 is "K9.4 Enable"
+comment E36D .set MODEADDR77 to the address data for mode #M0077
+lcomment E36D          Calculate memory offset of current mode entry in code plug
+lcomment E370       Fetch mode entry size in bytes
+lcomment E374       Offset to beginning of mode entries in code plug
+lcomment E379             End of function SETUPMODEADDR77
+comment E37A .-
+lcomment E37A          Calculate memory offset of current mode entry in code plug
+comment E37C .Uses $43 as source, $A3 as destination
+comment E37C .Fetch current mode number
+lcomment E37D       Fetch mode entry size in bytes
+lcomment E381       Offset to beginning of mode entries in code plug
+lcomment E386             End of function SETUPMODEADDR43
+comment E387 .-
+lcomment E38D       Bus busy?
+comment E392 .-
+lcomment E397       Bus busy?
+comment E39C .-
+lcomment E39C          get two bytes of Syn bits
+lcomment E39E          invert LSB
+lcomment E3A4             get upper nibble
+comment E3B9 .-
+comment E3BD .-
+comment E3CE .-
+comment E3D4 .-
+comment E3EB .-
+lcomment E3EB       PTT out low
+comment E3F5 .Send 3 bytes to synthesizer chip
+lcomment E3F5          This sort of looks like moving code
+comment E3F7 .plug bits to the divider / prescaler?
+lcomment E3F7       write with strobe low (A3)
+lcomment E3FA       write again with strobe high
+lcomment E3FD       and once more write with strobe low
+lcomment E42F          clear bit 4
+comment E44D .-
+lcomment E44D          FUNCTION CHUNK AT E3F5 SIZE 00000058 BYTES
+comment E45B .-
+lcomment E45B       FUNCTION CHUNK AT E4F7 SIZE 00000042 BYTES
+comment E45E .FUNCTION CHUNK AT E559 SIZE 0000002C BYTES
+lcomment E489       calculate mode adr in EEPROM
+lcomment E4B5          get rx DPL/MPL value
+lcomment E4CD          Is this the SB9600 "encrypted address / data" decoder?
+lcomment E539          Is this the SB9600 "encrypted address / data" decoder?
+lcomment E59C       calculate mode adr in EEPROM
+lcomment E5D4          get tx DPL/MPL values
+comment EC82 .-
+lcomment FFE8          Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
+lcomment FFF0          the 6301 manual says SCI (RDRF+ORFE+TDRE), i.e. UART
+lcomment FFF2          the 6301 manual says TOF (timer overflow)
+lcomment FFF4          the 6301 manual says OCF (timer output compare)
+lcomment FFF6          the 6301 manual says ICF (timer input compare)
+lcomment FFFE          Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5

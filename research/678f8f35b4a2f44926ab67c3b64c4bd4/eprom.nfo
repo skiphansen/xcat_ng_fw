@@ -4,20 +4,28 @@ include comments.nfo
 word c000-c001  * eprom checksum
 data c002-c03f  * copyright message
 const C4AC-C4B3 * data for crc routine ?
+word C55A-C5D8 * opcode_jmp_tbl
 word CD14-CDB3 * jump table
-word C55A-C5D8 * jump table
+word DA9D-DACD * table of pointers to another table ???
+word C5ED-C62D * jump tables
 unused F0AA-FFD8
 
 label 40  BEGRAM          
+label 0077 current_mode
 label 88  BUSYFLAGS1      
 label 91  rx_crc_acc
 label 0095 rx_data_count
-label 0096 tx_buf       * 4 bytes
-label 009b rx_buf       * 4 bytes
+label 0096 tx_buf0       * 4 bytes
+label 0097 tx_buf1
+label 0098 tx_buf2
+label 0099 tx_buf3
+label 009b rx_buf0       * 4 bytes
+label 009c rx_buf1       * 4 bytes
+label 009d rx_buf2       * 4 bytes
 label 009e rx_opcode
 label 009f rx_crc
 label A0  STATUSBYTE      
-label A1  MODEADDR77      
+label A1  current_mode_adr
 label A3  MODEADDR43      
 label 13F INITSP          
 label 140 ENDRAM          
@@ -40,8 +48,6 @@ label C38E reset_rx
 label C394 SCIHDLR
 label C4B4 OCFHDLR
 label C55A opcode_jmp_tbl
-label CAB5 opcode_MEMACS
-label CB15 opcode_MEMADD
 label CB8F opcode_ACTMDW
 label C716 TOFHDLR
 label C723 NMIHDLR
@@ -53,5 +59,40 @@ label C77C PLUGCK
 label C799 EXPLAINROMFAIL
 label C7A8 ERFLOOP
 label C7CD BADNOTBLANK
-label E36D SETUPMODEADDR77
+label CD14 button_jmp_tbl
+label E36D CalcCurModeAdr
+label C89F opcode_VOLVAL
+label C8F2 opcode_SQLVAL
+label C942 opcode_RXAUD
+label C968 opcode_TXAUD
+label C9BC opcode_DISMUT
+label C9C9 opcode_PTTINH
+label C9DC opcode_RXPLIN
+label C9EF opcode_REVINH
+label CA2C opcode_ALRTTN
+label CA93 opcode_RPTDIR
+label CAB5 opcode_MEMACS
+label CB15 opcode_MEMADD
+label CB5C opcode_VOLMIN
+label CB6C opcode_ETONOF
+label CB8F opcode_DEVJSR
+label CC5C opcode_ACRXPL
+label CC81 opcode_ACTXPL
+label CCC6 opcode_OPTSTS
+label CD0A opcode_ENTBUT
+label CD0F opcode_EXTBUT
+
+label 8000 EEPROM_Base  * also CP_LastAdr but EEPROM_Base is less confusing!
+label 8002 CP_CheckSum
+label 8007 CP_SB9600_Adr
+label 8008 CP_NumModes
+label 8009 CP_ModeTblEntryLen
+label 800A CP_MinAlertVol
+label 800B CP_DefSquelch
+label 800D CP_BandBM
+label 800E CP_HomeMode
+label 800F CP_TotalModes
+label 8018 CP_MPLDataPtr
+label 801A CP_InitMode
+label 801B CP_NumMPLs
 
