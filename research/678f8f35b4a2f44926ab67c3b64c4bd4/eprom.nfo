@@ -7,7 +7,11 @@ const C4AC-C4B3 * data for crc routine ?
 word C55A-C5D8 * opcode_jmp_tbl
 word CD14-CDB3 * jump table
 word DA9D-DACD * table of pointers to another table ???
-word C5ED-C62D * jump tables
+word C5DF-C62D * jump tables
+word C6D6-C715 * jump table
+word D108-D117 * jump table
+hex DACF-DC2E * pattern table ?
+
 unused F0AA-FFD8
 
 label 40  BEGRAM          
