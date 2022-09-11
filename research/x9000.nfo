@@ -1,53 +1,63 @@
 * common to all X9000 EPROMs
 option offset c000
-option 6301
+option 6303
 OPTION noflex
 OPTION noasc
 
-label 0   PORT1DDR        
-label 1   PORT2DDR        
-label 2   PORT1           
-label 3   PORT2           
-label 4   PORT3DDR        
-label 5   PORT4DDR        
-label 6   PORT3           
-label 7   PORT4           
-label 8   PORTTCSR1       
-label 9   PORTFRCHI       
-label A  PORTFRCLO       
-label B  PORTOCR1HI      
-label C  PORTOCR1LO      
-label D  PORTICRHI       
-label E  PORTICRLO       
-label F  PORTTCSR2       
-label 10 PORTRMCR        
-label 11 PORTTRCSR1      
-label 12 PORTRDR         
-label 13 PORTTDR         
-label 14 PORTRP5CSR      
+label 0  P1DDR        
+label 1  P2DDR        
+label 2  PORT1           
+label 3  PORT2           
+label 4  P3DDR        
+label 5  P4DDR        
+label 6  PORT3           
+label 7  PORT4           
+label 8  TCSR1       
+label 9  FRCHI       
+label A  FRCLO       
+label B  OCR1HI      
+label C  OCR1LO      
+label D  ICRHI       
+label E  ICRLO       
+label F  TCSR2       
+label 10 RMCR        
+label 11 TRCSR1      
+label 12 RDR         
+label 13 TDR         
+label 14 RP5CSR      
 label 15 PORT5           
-label 16 PORT6DDR        
+label 16 P6DDR        
 label 17 PORT6           
 label 18 PORT7           
-label 19 PORTOCR2HI      
-label 1A PORTOCR2LO      
-label 1B PORTTCSR3       
-label 1C PORTTCONR       
-label 1D PORTT2CNT       
-label 1E PORTTRCSR2      
-label 1F PORTTEST        
-label 20 PORT5DDR        
-label 21 PORT6CSR        
+label 19 OCR2H
+label 1A OCR2L
+label 1B TCSR3       
+label 1C TCONR       
+label 1D T2CNT       
+label 1E TRCSR2      
+label 1F TEST        
+label 20 P5DDR        
+label 21 P6CSR        
 
-label 4000 SYNTHBUS0       
-label 4001 SYNTHBUS1       
-label 4002 SYNTHBUS2       
-label 4003 SYNTHBUS3       
-label 4004 SYNTHBUS4       
-label 4005 SYNTHBUS5       
-label 4006 SYNTHBUS6       
-label 4007 SYNTHBUS7       
+label 4000 SYNTHBUS0_LOW
+label 4001 SYNTHBUS1_LOW
+label 4002 SYNTHBUS2_LOW
+label 4003 SYNTHBUS3_LOW
+label 4004 SYNTHBUS4_LOW
+label 4005 SYNTHBUS5_LOW
+label 4006 SYNTHBUS6_LOW
+label 4007 SYNTHBUS7_LOW
+
+label 4008 SYNTHBUS0_HI
+label 4009 SYNTHBUS1_HI
+label 400A SYNTHBUS2_HI
+label 400B SYNTHBUS3_HI
+label 400C SYNTHBUS4_HI
+label 400D SYNTHBUS5_HI
+label 400E SYNTHBUS6_HI
+label 400F SYNTHBUS7_HI
+
 
 label C000 AUDIOCTLBUS
-
+cvec fff8-ffef * extra interrupt 
 

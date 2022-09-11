@@ -56,7 +56,7 @@ comment C002 .-
 comment C002 .M0086 bits
 comment C002 . 0x80 configuration mode active (set by ENTBUT, cleared by EXTBUT)
 comment C002 . 0x40 ??
-comment C002 . 0x01 ??
+comment C002 . 0x01 alert tone on
 comment C002 .-
 comment C002 .M008D bits note: M008D set from CP offset 0x14 initally (usually 0xC0)
 comment C002 . 0x80 send RADRDY
@@ -111,7 +111,9 @@ comment C002 . 0x10
 comment C002 . 0x08   
 comment C002 . 0x04   
 comment C002 . 0x02   
-comment C002 . 0x01   
+comment C002 . 0x01
+comment C002 .-
+comment C002 .M00AB - tone duration in ticks
 comment C002 .-
 comment C002 .M00AD bits set to 0x01 new mode is activated
 comment C002 . 0x80
@@ -130,12 +132,22 @@ comment C002 . 0x1f: Data 3 frequency in 100 Hz increments 1 = 100 hz... 31 = 31
 comment C002 .-
 comment C002 .M00AF alert tone set by ALRTTN Data 4 - pattern number
 comment C002 .-
-comment C002 .M00B0 bits
+comment C002 .M00B0 bits - alert tone state
 comment C002 . 0x10 ???
 comment C002 . 0x08 ???
 comment C002 . 0x04 ???
-comment C002 . 0x02 ???
+comment C002 . 0x02 Turned off when ALRTTN sents a new pattern
 comment C002 . 0x01 ???
+comment C002 .-
+comment C002 .M00BE bits
+comment C002 . 0x80
+comment C002 . 0x40   
+comment C002 . 0x20   
+comment C002 . 0x10   
+comment C002 . 0x08   
+comment C002 . 0x04   
+comment C002 . 0x02   
+comment C002 . 0x01   
 comment C002 .-
 comment C002 .BUSYFLAGS1 bits (0x88)
 comment C002 .0x20 = MEMACS received, only MEMADD, MEMFRA, and DEVJSR commands allowed
@@ -329,7 +341,8 @@ lcomment C26D          Port 6 is mostly audio ctl bus
 lcomment C26F          set port 6 to all outs
 lcomment C277          So $83 bit $20 was previously on
 lcomment C279       transmitter keyed?
-lcomment C27C  jump if not
+lcomment C27C          jump if not
+comment C292 .-
 lcomment C298       squelch decision ?
 comment C2A3 .-
 lcomment C2C8       note: the first entry skipped so table really starts at C5DF
@@ -571,11 +584,12 @@ lcomment CA04       set PTT bit (PTT inactive)
 lcomment CA08       clear PTT bit (PTT active)
 comment CA2C .handle ALRTTN opcode
 lcomment CA2C          get D1, Data 2, Data 3
-lcomment CA2E continuous pattern
-lcomment CA31 jump if so
-lcomment CA39 pattern 0 (nothing)
-lcomment CA3A jump if not
-lcomment CA3D turn off tone
+lcomment CA2E       continuous pattern ?
+lcomment CA31          jump if so
+lcomment CA33          save alert tone spec
+lcomment CA39             pattern 0 (nothing)
+lcomment CA3A          jump if not
+lcomment CA3D          turn off tone
 comment CA40 .-
 lcomment CA87       transmitter keyed?
 comment CA93 .handle RPTDIR opcode
@@ -850,29 +864,39 @@ comment D90A .-
 lcomment D91D       ptt active?
 lcomment D920          jump if not
 comment D945 .-
+lcomment D945       continuous pattern ?
 lcomment D958          get pattern #
 lcomment D95A          jump if tone off
-lcomment D976 reset to step 0
-lcomment D985 next step
+lcomment D976       reset to step 0
+lcomment D980       time up?
+lcomment D983          jump if not
+lcomment D985       next step
 comment D995 .-
-lcomment D9A3 reset to step 0
-lcomment D9B1 next step
-lcomment D9CF reset to step 0
-lcomment D9DD next step
+lcomment D9A3       reset to step 0
+lcomment D9B1       next step
+lcomment D9CF       reset to step 0
+lcomment D9DD       next step
 comment D9E5 .-
-lcomment D9F3 reset to step 0
-lcomment DA01 next step
+lcomment D9F3       reset to step 0
+lcomment DA01       next step
 comment DA07 .-
 lcomment DA0A       set TOS1 to 1 (output 1 on timer match)
 comment DA11 .-
+lcomment DA19       continuous pattern ?
 lcomment DA1E       clear pattern #
-comment DA22 .Best current guess ... this has something to do with generating tones
-comment DA22 .B = pattern # ???
-lcomment DA26 table has 0x17 entries
-lcomment DA2A    pattern 0 - nothing
-lcomment DA2D get pointer to pattern
-lcomment DA2F get step #
-lcomment DA31 offset to current step
+comment DA22 .Generated alert tone
+comment DA22 .A: 0x80 D1: 1 = continuously repeat pattern
+comment DA22 .   0x60: Data 2 Priority  00: lowest, 01 low, 10 high, 11 highest
+comment DA22 .   0x1f: Data 3 frequency in 100 Hz increments 1 = 100 hz... 31 = 3100hz
+comment DA22 .B = pattern #
+lcomment DA26          table has 0x17 entries
+lcomment DA2A             pattern 0 - nothing
+lcomment DA2D          get pointer to pattern
+lcomment DA2F          get step #
+lcomment DA31             offset to current step
+lcomment DA35          get duration from table
+lcomment DA39          Tone on?
+lcomment DA3B          jump if not
 lcomment DA44             toss B from stack
 comment DA46 .-
 lcomment DA49             toss B from stack
@@ -880,6 +904,11 @@ comment DA4B .-
 lcomment DA52       set TOS1 to 1 (output 1 on timer match)
 comment DA57 .-
 lcomment DA57       set TOS1 to 0 (output 0 on timer match)
+lcomment DA5A             get pattern number 
+lcomment DA5B          pattern < 0x15
+lcomment DA5D          jump if not
+comment DA64 .special handling for patterns 0x15, 0x16, 0x17
+lcomment DA64          get second byte from table
 comment DA6C .set CKS1, CKS0 to 01: count E clock / 8
 comment DA6C .1.2288 Mhz / 8 = 0.1536 Mhz or 6.51 microseconds per count
 comment DA6C .provides delays up to 1.66 milliseconds
@@ -887,13 +916,36 @@ comment DA74 .set CKS1, CKS0 to 10: count E clock / 128
 comment DA74 .1.2288 Mhz / 128 = 9600 hz or 104.16 microseconds per count
 comment DA74 .provides delays up to 26.56 milliseconds
 lcomment DA76          set timer 2 clock
+lcomment DA78          get time constant from table
 lcomment DA7A          start timer
-comment DA7D .-
+comment DA7D .counter 2 time constants for tone generation
+comment DA7D .values 0, 1 and 2 are in 104.16 millisecond increments, the rest are in 
+comment DA7D .6.51 microsecond increments
+comment DA7D .so a value 0x08 is 0x80 \* 
+comment DA7D .0 : 0xff \* 104.16 = 26.5608 milliseconds
+comment DA7D .1 : 0x30 \* 104.16 = 5 milliseconds
+comment DA7D .2 : 0x18 \* 104.16 = 2.5 milliseconds
+comment DA7D .3 : 0xff \* 6.51 = 1660.05
+comment DA7D .4 : 0xc0 \* 6.51 = 1249.92
+comment DA7D .5 : 0x9a \* 6.51 = 1002.54
+comment DA7D .6 : 0x80 \* 6.51 = 833.28
+comment DA83 .0x06
+comment DA89 .0x0c
+comment DA8F .0x012
+comment DA95 .0x18
+comment DA9B .0x1e
 comment DA9D .table of pointers to pattern table entries
 comment DA9D .each entry is is one or more steps. A step == 0x0000 indicates end of the pattern
 comment DAA5 .0x04
 comment DAAD .0x08
 comment DAB5 .0x0c
+comment DACF .-
+comment DACF .Pattern table
+comment DACF .first byte:
+comment DACF .  0x80 = tone on
+comment DACF .  0x7f = tone duration in 20 millisecond increments
+comment DACF .second byte: 
+comment DACF .-
 comment DACF .table entry 0x00
 comment DAD1 .table entry 0x01
 comment DAD5 .table entry 0x02
@@ -914,10 +966,10 @@ comment DBC1 .table entry 0x10
 comment DBC5 .table entry 0x11
 comment DBC9 .table entry 0x12
 comment DBCD .table entry 0x13
-comment DBD1 .table entry 0x14
-comment DBD5 .table entry 0x15
-comment DC11 .table entry 0x16
-comment DC1F .table entry 0x17
+comment DBD1 .table entry 0x14 - single 40ms click
+comment DBD5 .table entry 0x15 - phone ring
+comment DC11 .table entry 0x16 - dynamic regroup tone
+comment DC1F .table entry 0x17 - talk permit tone
 lcomment DC35       transmitter keyed?
 lcomment DC88       transmitter keyed?
 lcomment DCAB       mute detector
@@ -941,9 +993,9 @@ lcomment DDB7       send RADKEY
 lcomment DDBD       transmitter keyed?
 lcomment DDC9       transmitter keyed?
 lcomment DDE6       squelch decision ?
-lcomment DDE9 jump if open
-lcomment DDEB was it open ?
-lcomment DDEE yup, nothing new
+lcomment DDE9          jump if open
+lcomment DDEB       was it open ?
+lcomment DDEE          yup, nothing new
 comment DDF5 .-
 lcomment DE03       send SQLDET
 lcomment DE25       send PLDECT
@@ -1017,10 +1069,10 @@ comment E3BD .-
 comment E3CE .-
 comment E3D4 .-
 comment E3EB .-
-lcomment E3EB       ???
+lcomment E3EB clear bit 0x04 (output)
+lcomment E3EE  set port 5 direction, all inputs except bit 0x04
+lcomment E3F2 waste time?? result isn't used
 comment E3F5 .Send 3 bytes to synthesizer chip
-lcomment E3F5          This sort of looks like moving code
-comment E3F7 .plug bits to the divider / prescaler?
 lcomment E3F7       write with strobe low (A3)
 lcomment E3FA       write again with strobe high
 lcomment E3FD       and once more write with strobe low
@@ -1028,7 +1080,7 @@ lcomment E42F          clear bit 4
 comment E44D .-
 lcomment E44D          FUNCTION CHUNK AT E3F5 SIZE 00000058 BYTES
 comment E456 .-
-lcomment E459          set syn
+lcomment E459          send data to synthesizer & return
 comment E45B .-
 lcomment E45B       FUNCTION CHUNK AT E4F7 SIZE 00000042 BYTES
 comment E45E .FUNCTION CHUNK AT E559 SIZE 0000002C BYTES
