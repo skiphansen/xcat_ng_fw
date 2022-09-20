@@ -21,6 +21,7 @@
 # https://github.com/skiphansen/sb9600_tools
 
 import sys
+import math
 import argparse
 
 Debug = False
@@ -136,16 +137,10 @@ def CalcPl(base,multiplier):
 
 def DumpPlDpl(mode_data,plug,BigEEPROM):
     PlTbl = (plug[0x18] << 8) + plug[0x19]
-    rx_index = mode_data[6]
-    tx_index = mode_data[7]
-
-    if rx_index != 0:
-        offset = PlTbl + (rx_index  - 1)  * 4
-        rx_value = (plug[offset] << 8) + plug[offset+1]
-
-    if tx_index != 0:
-        offset = PlTbl + (tx_index - 1)  * 4
-        tx_value = (plug[offset] << 8) + plug[offset+1]
+    tbl_index = mode_data[6]
+    offset = PlTbl + (tbl_index - 1)  * 4
+    rx_value = (plug[offset] << 8) + plug[offset+1]
+    tx_value = (plug[offset+2] << 8) + plug[offset+3]
 
     if Debug:
         print(f'PlTbl 0x{PlTbl:04x}')
@@ -215,7 +210,6 @@ def DumpCp(filename):
         print(err)
         exit(code=err.errno)
 
-
     while True:
         if filename.endswith('.RDT'):
             ignored = fp.read(1)
@@ -252,6 +246,14 @@ def DumpCp(filename):
         else:
             print('Checksum is valid')
 
+        if BigEEPROM:
+            sn_adr = 0x1ff2
+        else:
+            sn_adr = 0x7f2
+        SerialNum = plug[sn_adr:sn_adr+10].decode()
+        if len(SerialNum) > 0:
+            print(f'Radio serial number: {SerialNum}')
+
         print(f'SB9600 address 0x{plug[7]:02x}')
 
         modes = plug[8]
@@ -268,22 +270,35 @@ def DumpCp(filename):
         print(f'Minimum alert tone volume level {plug[0xa]}')
         print(f'Default squelch level {plug[0xb]}')
         print(f'Home mode {plug[0xe]}')
+        if plug[0x40] & 0x80:
+            print(f'Siren/PA is configured (0x{plug[0x40]:02x})')
+
         if plug[0x1a] != 0:
             DumpMplTbl(plug)
 
-        RadioRange = rss_data[0]
-        if RadioRange < 1 or RadioRange > 0xc:
-            print(f'Invalid radio range 0x{RadioRange:02x} ?!?')
-            break
-        print(f'Radio range {RangeTbl[RadioRange-1][0]} Mhz')
-        IfFreq = RangeTbl[RadioRange-1][1]
-        LowBand = (RadioRange == 1)
-        Mhz800 = (RadioRange == 0xc)
+        if rss_data:
+            RadioRange = rss_data[0]
+            if RadioRange < 1 or RadioRange > 0xc:
+                print(f'Invalid radio range 0x{RadioRange:02x} ?!?')
+                break
+            print(f'Radio range {RangeTbl[RadioRange-1][0]} Mhz')
+            IfFreq = RangeTbl[RadioRange-1][1]
+            LowBand = (RadioRange == 1)
+            Mhz800 = (RadioRange == 0xc)
+        else:
+            print('Data appears to be a raw image, assuming VHF radio')
+            IfFreq = -53.9e6
+            LowBand = False
+            Mhz800 = False
 
-        mode = 1
+        mode = 0
         while mode <= modes:
-            i = 0x100 + ((mode - 1) * ModeLen)
+            i = 0x100 + (mode * ModeLen)
+            mode += 1
             mode_data = plug[i:i+ModeLen]
+            if mode_data[8] == 0xe5 and mode_data[9] == 0x04:
+            # ununsed mode 
+                continue
             if Debug:
                 print(f'Mode {mode}:')
                 DumpHex(mode_data)
@@ -311,13 +326,30 @@ def DumpCp(filename):
                 if ftalk_around != 0:
                     print(f'  ftalk_around {ftalk_around/1e6}')
 
-            if mode_data[6] != 0 or mode_data[7] != 0:
+            if mode_data[6] != 0:
             # A PL or DPL is programmed
                 DumpPlDpl(mode_data,plug,BigEEPROM)
+            if mode_data[7] != 0:
+                if mode_data[7] & 0x80:
+                    print('  PTT disabled')
+                else:
+                    minutes = 0
+                    seconds = (mode_data[7] & 0x7f) * 5
+                    if seconds > 59:
+                        minutes = math.floor(seconds / 60)
+                        seconds -= minutes * 60
+                    print(f'  Tx timeout {minutes}:{seconds:02d}')
 
             scanlist=mode_data[16:25]
-            if mode_data[0xb] != 0 or mode_data[0xc] != 0 or bytearray(scanlist) != empty_scan_list:
-                print('  Scanning:')
+            scan_enable = mode_data[0x8] & 0x3
+            if mode_data[0xb] != 0 or mode_data[0xc] != 0 or bytearray(scanlist) != empty_scan_list and scan_enable != 0:
+                if scan_enable == 3:
+                    print(f'  Operator selected scanning:')
+                elif scan_enable == 2:
+                    print('   Scanning:')
+                else:
+                    print(f' Error: scan_enable invalid {scan_enable}')
+
                 if mode_data[0xb] != 0 and mode_data[0xc] != 0:
                         print(f'    P1 mode {mode_data[0xb]}, P2 mode {mode_data[0xc]}')
                 elif mode_data[0xb] != 0:
@@ -328,11 +360,8 @@ def DumpCp(filename):
                 if bytearray(scanlist) != empty_scan_list:
                     print('    NP modes: ',end='')
                     DumpScanlist(scanlist)
-            mode += 1
 
     fp.close()
-
-args = len(sys.argv)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--Debug',action='store_true')
