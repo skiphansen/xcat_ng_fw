@@ -41,6 +41,51 @@ RangeTbl = (
     ('806 - 870',53.9e6)
 )
 
+pl_tones = {
+    67.0:"XZ",
+    69.3:"WZ",
+    71.9:"XA",
+    74.4:"WA",
+    77.0:"XB",
+    79.7:"WB",
+    82.5:"YZ",
+    85.4:"YA",
+    88.5:"YB",
+    91.5:"ZZ",
+    94.8:"ZA",
+    97.4:"ZB",
+    100.0:"1Z",
+    103.5:"1A",
+    107.2:"1B",
+    110.9:"2Z",
+    114.8:"2A",
+    118.8:"2B",
+    123.0:"3Z",
+    127.3:"3A",
+    131.8:"3B",
+    136.5:"4Z",
+    141.3:"4A",
+    146.2:"4B",
+    151.4:"5Z",
+    156.7:"5A",
+    162.2:"5B",
+    167.9:"6Z",
+    173.8:"6A",
+    179.9:"6B",
+    186.2:"7Z",
+    192.8:"7A",
+    203.5:"M1",
+    206.5:"8Z",
+    210.7:"M2",
+    218.1:"M3",
+    225.7:"M4",
+    229.1:"9Z",
+    233.6:"M5",
+    241.8:"M6",
+    250.3:"M7",
+    254.1:"0Z",
+}
+
 RefTbl = (('not used',0),('6.25 Khz',6250),('4.16667 Khz',4167),('5 Khz',5000))
 
 CTbl = (-1,1,3,2)
@@ -151,11 +196,20 @@ def DumpPlDpl(mode_data,plug,BigEEPROM):
 
     if rx_value > 0 and rx_value < 0xf000:
         RxPl = CalcPl(61.22666,rx_value)
-        print(f'  Rx PL {RxPl}')
+        print(f'  Rx PL {RxPl}',end='')
+        pl_code = pl_tones.get(RxPl)
+        if pl_code:
+            print(f' ({pl_code})',end="")
+        print('')
 
     if tx_value > 0 and tx_value < 0xf000:
         TxPl = CalcPl(17.70666,tx_value)
-        print(f'  Tx PL {TxPl}')
+        print(f'  Tx PL {TxPl}',end="")
+        pl_code = pl_tones.get(TxPl)
+        if pl_code:
+            print(f' ({pl_code})',end="")
+        print('')
+
 
 def DumpScanlist(scanlist):
     mode = 1
@@ -188,12 +242,19 @@ def DumpMplTbl(plug):
         elif rx_value > 0 and rx_value < 0xf000:
             RxPl = CalcPl(61.22666,rx_value)
             print(f'PL {RxPl}',end='')
+            pl_code = pl_tones.get(RxPl)
+            if pl_code:
+                print(f' ({pl_code})',end="")
             
         if tx_value == 0:
             print(f', Tx CSQ')
         elif tx_value < 0xf000:
             TxPl = CalcPl(17.70666,tx_value)
-            print(f', Tx PL {TxPl}')
+            print(f', Tx PL {TxPl}',end="")
+            pl_code = pl_tones.get(TxPl)
+            if pl_code:
+                print(f' ({pl_code})',end="")
+            print('')
         i += 1
 
 def DumpCp(filename):
@@ -296,6 +357,8 @@ def DumpCp(filename):
             i = 0x100 + (mode * ModeLen)
             mode += 1
             mode_data = plug[i:i+ModeLen]
+            #print(f'Mode data:')
+            #DumpHex(mode_data)
             if mode_data[8] == 0xe5 and mode_data[9] == 0x04:
             # ununsed mode 
                 continue
