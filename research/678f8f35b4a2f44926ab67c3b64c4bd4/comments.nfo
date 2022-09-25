@@ -24,7 +24,7 @@ comment C002 .D6 - Squelch MSB
 comment C002 .D7 - Mic mute                      (inverted)
 comment C002 .-
 comment C002 .RAM usage
-comment C002 .M0043 New Mode number
+comment C002 .M0043 User number
 comment C002 .M0049 Current squelch level 0-5
 comment C002 .-
 comment C002 .M0074 bits (set to 0xC3 on reset)
@@ -80,7 +80,7 @@ comment C002 .M008E bits note: set from CP offset 0x15 initally (usually 0x20)
 comment C002 .M008E bits
 comment C002 . 0x80 send ACTSTU   
 comment C002 . 0x40 send PTTINH
-comment C002 . 0x20 send DISPLY
+comment C002 . 0x20 send DISPLY mode XX (mode changed)
 comment C002 . 0x10 send DISPLY  
 comment C002 . 0x08   
 comment C002 . 0x04   
@@ -296,7 +296,7 @@ comment C18A .So what condition are we testing for here?
 lcomment C18C       Ditto the bottom two bits
 lcomment C194       Are we in test mode? (jumper installed)
 lcomment C199       Maybe stash the status of test mode in $BF?
-lcomment C19C set bits 0x80 and 0x10
+lcomment C19C       set bits 0x80 and 0x10
 lcomment C19F       Frob the watchdog
 lcomment C1A8       This should be in the code plug header
 lcomment C1AB       Seems to calculate ((b//5)\*6) + (b%5)
@@ -478,7 +478,8 @@ comment C544 .Send byte in ACCB, return with interrupts disabled
 lcomment C544       Clear /BUSY
 lcomment C555          send byte
 lcomment C557             set carry ??
-comment C55A .First level opcode handler jump table
+comment C55A .First level opcode handler jump table opcodes 0x00 to 0x3f
+comment C55A .opcodes above 0x3f are not supported by the X9000
 lcomment C55A This is a branch table referenced via X from 0xC320
 comment C56A .0x08
 comment C57A .0x10
@@ -590,6 +591,9 @@ lcomment C80D       Decrement outer loop counter
 comment C816 .-
 lcomment C820       activate the mode
 comment C824 .-
+comment C82A .-
+comment C831 .-
+comment C838 .-
 lcomment C83F             Seems to calculate ((b//5)\*6) + (b%5)
 comment C89F .handle VOLVAL opcode
 lcomment C89F       read request?
@@ -611,7 +615,7 @@ lcomment C8DD       start sending packet
 lcomment C8E9          get volume level
 lcomment C8ED          VOLVAL
 comment C8F2 .handle SQLVAL opcode
-comment C918 .opcode_ACTMDW activate a mode
+comment C918 .opcode_ACTMDW activate a \*\*OPTION\*\* mode
 lcomment C91A          mask D1, D2
 lcomment C91C          ignore if neither are set
 lcomment C931       Calculate memory offset of current mode entry in code plug
@@ -644,34 +648,34 @@ comment CA40 .-
 lcomment CA87       transmitter keyed?
 comment CA93 .handle RPTDIR opcode
 comment CAB5 .Handle MEMACS (0x08) opcode
-lcomment CAB8 bit D1 is not set, enter normal bus activity
+lcomment CAB8          bit D1 is not set, enter normal bus activity
 lcomment CABA          get address field
-lcomment CABC jump if broadcast
+lcomment CABC          jump if broadcast
 lcomment CABE          address == radio ?
 lcomment CAC0          jump if so
 lcomment CAC2       our address?
-lcomment CAC5 jump if os
-lcomment CACB       our address - 1 ???
-lcomment CACC    jump if so
+lcomment CAC5          jump if os
+lcomment CACB             our address - 1 ???
+lcomment CACC          jump if so
 comment CAD8 .-
 comment CADE .address matched
 lcomment CADE       set programming mode flag
-lcomment CAE4 jump if modifying RAM or option device 2
+lcomment CAE4          jump if modifying RAM or option device 2
 comment CAE6 .-
 lcomment CAE6       get address of timer update
 lcomment CAE9          save
 lcomment CAEB       set port 6 to all inputs
-lcomment CAF0 set port2.1 and port2.4 to outputs 
+lcomment CAF0          set port2.1 and port2.4 to outputs 
 lcomment CAF2          Seems to set RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
-lcomment CAF7 clear bit 0x10 - reset needed
-lcomment CAFA clear bit 0x80
+lcomment CAF7       clear bit 0x10 - reset needed
+lcomment CAFA       clear bit 0x80
 comment CAFE .resuming normal bus activity
-lcomment CAFE is D8 set?
-lcomment CB01    jump if not and do a RESET
-lcomment CB03 is bit 0x10 set?
-lcomment CB06 jump if not and do a reset
-lcomment CB08 clear programming mode bit
-lcomment CB0B set bit 0x80
+lcomment CAFE       is D8 set?
+lcomment CB01          jump if not and do a RESET
+lcomment CB03       is bit 0x10 set?
+lcomment CB06          jump if not and do a reset
+lcomment CB08       clear programming mode bit
+lcomment CB0B       set bit 0x80
 comment CB0F .do a reset
 comment CB15 .handle MEMADD opcode
 lcomment CB15       programming mode?
@@ -766,14 +770,14 @@ lcomment CE1A          EXTBUT ?
 lcomment CE1E          SHOBUT ?
 comment CE23 .Mode SETBUT or EXTBUT
 comment CE2D .-
-lcomment CE2D       set mode change bit
+lcomment CE2D       send DISPLY mode with new mode
 comment CE33 .Mode INCBUT
 lcomment CE3B          wrap back to mode 1
 comment CE3F .Mode DECBUT
 comment CE44 .Activate new mode in A
 lcomment CE44          save mode number
 lcomment CE4D       Calculate memory offset of current mode entry in code plug
-lcomment CE5C       set mode change bit
+lcomment CE5C       send DISPLY mode with new mode
 comment CE60 .-
 lcomment CE60       wrap from mode 1 to max mode
 comment CE65 .-
@@ -811,7 +815,7 @@ lcomment CFB2          get DATA2 and opcode
 comment CFD4 .button handler for 0x0108:"home"
 lcomment CFEB       Calculate memory offset of current mode entry in code plug
 comment CFEE .Uses $43 as source, $A3 as destination
-lcomment CFFA       set mode change bit
+lcomment CFFA       send DISPLY mode with new mode
 comment D001 .button handler for 0x010D:"alarms"
 comment D009 .button handler for 0x010F:"alarms select"
 lcomment D009          get DATA2 and opcode
@@ -886,9 +890,10 @@ lcomment D67E       clear new mode bit
 lcomment D682       PTT disabled ?
 lcomment D685          jump if so
 lcomment D68A          PTTINH
-comment D694 .called with  0x20 is set in M008E send DISPLY
+comment D694 .called with  0x20 is set in M008E send DISPLY mode, new mode number
 lcomment D697          return bus is busy
-lcomment D69C          Adr = Radio
+lcomment D69C          field ID = mode
+lcomment D6A0          get mode to display
 lcomment D6A2          save data2/display data
 lcomment D6A4          DISPLY
 comment D6AE .called when 0x10 is set in M008E send DISPLY
@@ -1138,7 +1143,6 @@ lcomment E36D          Calculate memory offset of current mode entry in code plu
 lcomment E370       Fetch mode entry size in bytes
 lcomment E374       Offset to beginning of mode entries in code plug
 lcomment E379             End of function SETUPMODEADDR77
-comment E37A .-
 lcomment E37A          Calculate memory offset of new mode entry in code plug
 lcomment E37D       Fetch mode entry size in bytes
 lcomment E381       Offset to beginning of mode entries in code plug
@@ -1156,9 +1160,10 @@ lcomment E3B0       transmitter keyed?
 comment E3B9 .-
 comment E3BD .-
 lcomment E3C1          jump if not lowband
+comment E3C3 .low band radio
 comment E3CE .-
-comment E3D4 .B must be 0x0a??? (BandBM seems to be 0x14 for all bands except low band)
-lcomment E3E7          branch never ... WTF?
+comment E3D4 .B must be 0x08??? (BandBM seems to be 0x14 for all bands except low band)
+lcomment E3E7          branch never ... WTF? manual binary patch ?
 comment E3EB .-
 lcomment E3EB       clear bit 0x04 (output)
 lcomment E3EE          set port 5 direction, all inputs except bit 0x04
@@ -1209,9 +1214,16 @@ lcomment F000       squelch decision ?
 lcomment F017       send RXMODE
 lcomment F064       Channel activity ?
 lcomment F081       Channel activity ?
-lcomment FFE8          Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5
-lcomment FFF0          the 6303 manual says SCI (RDRF+ORFE+TDRE), i.e. UART
-lcomment FFF2          the 6303 manual says TOF (timer overflow)
-lcomment FFF4          the 6303 manual says OCF (timer output compare)
-lcomment FFF6          the 6303 manual says ICF (timer input compare)
+comment FFD9 .I can't find any references to these jumps.  My guess guess is that
+comment FFD9 .they are here for the DEVJSR opcode for version independence
+lcomment FFE8 ?? the 63a03 manual says doesn't show this as a vector ??
+lcomment FFEA    63a03 manual says IRQ2
+lcomment FFEC the 63a03 manual says CMI (timer 2 counter match)
+lcomment FFEE the 63a03 manual says Trap
+lcomment FFF0          the 63a03 manual says SIO (RDRF+ORFE+TDRE), i.e. UART
+lcomment FFF2          the 63a03 manual says TOI (timer overflow)
+lcomment FFF4          the 63a03 manual says OCI (timer output compare)
+lcomment FFF6          the 63a03 manual says ICI (timer input compare)
+lcomment FFFA          30
+lcomment FFFC          23
 lcomment FFFE          Disable IRQ1/2, Memory Ready, Halt, Auto Memory Ready inputs on Port 5

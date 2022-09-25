@@ -12,11 +12,12 @@ word C5DF-C62D * jump tables
 word C6D6-C715 * jump table
 word D108-D117 * jump table
 const DACF-DC2E * pattern table
+word FFE8-FFEF * additional interrupt vectors the disassemlber doesn't know about
 
 unused F0AA-FFD8
 
 label 40  BEGRAM          
-label 0077 current_mode
+label 0077 option_mode
 label 88  BUSYFLAGS1      
 label 91  rx_crc_acc
 label 0095 rx_data_count
@@ -30,7 +31,7 @@ label 009d rx_buf2       * 4 bytes
 label 009e rx_opcode
 label 009f rx_crc
 label A0  STATUSBYTE      
-label A1  current_mode_adr
+label A1  option_mode_adr
 label A3  MODEADDR43      
 label 13F INITSP          
 label 140 ENDRAM          
@@ -65,9 +66,10 @@ label C799 EXPLAINROMFAIL
 label C7A8 ERFLOOP
 label C7CD BADNOTBLANK
 label CD14 button_jmp_tbl
-label E36D CalcCurModeAdr
+label E36D CalcOptionModeAdr
 label C89F opcode_VOLVAL
 label C8F2 opcode_SQLVAL
+label C918 opcode_ACTMDW
 label C942 opcode_RXAUD
 label C968 opcode_TXAUD
 label C9BC opcode_DISMUT
