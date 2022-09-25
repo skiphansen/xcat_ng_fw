@@ -257,11 +257,37 @@ def DumpMplTbl(plug):
             print('')
         i += 1
 
-def DumpCp(filename):
+def DumpCp(args,filename):
     BigEEPROM = False
     LowBand = False
     Mhz800 = False
     empty_scan_list = bytearray(b'\0') * 8
+    empty_syn = b'\0' * 3
+
+    if filename.lower().endswith('.rdt'):
+        RtdFile = True
+    else:
+        RtdFile = False
+        if args.Band == None:
+            print('Error: Band ?')
+            return True
+
+        Band = args.Band.lower()
+        if Band == 'low':
+        # set band for 29.7 - 50.0
+            RadioRange = 1
+        elif Band == 'vhf':
+        # set band for 136 - 154
+            RadioRange = 2
+        elif Band == 'uhf':
+        # set band for 450 - 470
+            RadioRange = 8
+        elif Band == '800':
+            print('Sorry 800 Mhz is not supported')
+            return False
+        else:
+            print('Error: invalid Band "{args.Band}"')
+            return True
 
     print(f'dumping {filename}')
 
@@ -272,7 +298,7 @@ def DumpCp(filename):
         exit(code=err.errno)
 
     while True:
-        if filename.endswith('.RDT'):
+        if RtdFile:
             ignored = fp.read(1)
         plug = fp.read()
         if not plug:
@@ -285,13 +311,23 @@ def DumpCp(filename):
         elif length != 2048:
             print(f'Invalid length {length}, must be 2048 or 8192')
             break
-        rss_data = plug[8192:]
-        plug=plug[0:length]
-        if Debug:
-            print(f'plug:')
-            DumpHex(plug,with_adr=True)
-            print(f'rss_data ({len(rss_data)} bytes):')
-            DumpHex(rss_data,with_adr=True)
+        if RtdFile:
+            rss_data = plug[8192:]
+            plug=plug[0:length]
+            if Debug:
+                print(f'plug:')
+                DumpHex(plug,with_adr=True)
+                print(f'rss_data ({len(rss_data)} bytes):')
+                DumpHex(rss_data,with_adr=True)
+            RadioRange = rss_data[0]
+            if RadioRange < 1 or RadioRange > 0xc:
+                print(f'Invalid radio range 0x{RadioRange:02x} ?!?')
+                return
+
+            CustNameLen = rss_data[2]
+            if CustNameLen > 0:
+                Customer = rss_data[3:CustNameLen+3].decode()
+                print(f'Customer: "{Customer}"')
 
         print(f'EEPROM length {length}, checksum 0x{saved_sum:04x}')
         adr = 4
@@ -319,8 +355,8 @@ def DumpCp(filename):
 
         modes = plug[8]
         if modes == 0:
-            print(f'No modes defined ?!?')
-            break
+            print(f'No modes are defined ?!?')
+            return
 
         s=''
         if modes > 1:
@@ -334,23 +370,10 @@ def DumpCp(filename):
         if plug[0x40] & 0x80:
             print(f'Siren/PA is configured (0x{plug[0x40]:02x})')
 
-        if plug[0x1a] != 0:
-            DumpMplTbl(plug)
-
-        if rss_data:
-            RadioRange = rss_data[0]
-            if RadioRange < 1 or RadioRange > 0xc:
-                print(f'Invalid radio range 0x{RadioRange:02x} ?!?')
-                break
-            print(f'Radio range {RangeTbl[RadioRange-1][0]} Mhz')
-            IfFreq = RangeTbl[RadioRange-1][1]
-            LowBand = (RadioRange == 1)
-            Mhz800 = (RadioRange == 0xc)
-        else:
-            print('Data appears to be a raw image, assuming VHF radio')
-            IfFreq = -53.9e6
-            LowBand = False
-            Mhz800 = False
+        print(f'Radio range {RangeTbl[RadioRange-1][0]} Mhz')
+        IfFreq = RangeTbl[RadioRange-1][1]
+        LowBand = (RadioRange == 1)
+        Mhz800 = (RadioRange == 0xc)
 
         mode = 0
         while mode <= modes:
@@ -359,8 +382,8 @@ def DumpCp(filename):
             mode_data = plug[i:i+ModeLen]
             #print(f'Mode data:')
             #DumpHex(mode_data)
-            if mode_data[8] == 0xe5 and mode_data[9] == 0x04:
-            # ununsed mode 
+            if mode_data[0:3] == empty_syn:
+            # No Rx frequency, ununsed mode 
                 continue
             if Debug:
                 print(f'Mode {mode}:')
@@ -424,10 +447,14 @@ def DumpCp(filename):
                     print('    NP modes: ',end='')
                     DumpScanlist(scanlist)
 
+        if plug[0x1a] != 0:
+            DumpMplTbl(plug)
+
     fp.close()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--Debug',action='store_true')
+parser.add_argument("--Band",help='radio band from .bin file ("low", "vhf", "uhf", or "800")',type=str)
 parser.add_argument('file',nargs='+')
 args = parser.parse_args()
 
@@ -438,6 +465,6 @@ if args.Debug:
     Debug = True
 
 while len(args.file) > 0:
-    DumpCp(args.file[0])
+    DumpCp(args,args.file[0])
     args.file = args.file[1:len(args.file)]
                 
