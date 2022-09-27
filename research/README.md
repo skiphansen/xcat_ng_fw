@@ -22,13 +22,18 @@ Obviously the X9000 firmware is Copyrighted by Motorola. Please do not ask
 for images or firmware listings, they will **NOT** be provided.  However
 you are free to create your own listings from your own EPROM.
 
+If you have a RIB you can use the [x9000.py](https://github.com/skiphansen/sb9600_tools#syntor-x9000-swiss-army-knife) script to save your radio's firmware into a file.  
+
+If you have an EPROM programmer you can use it to read the contents of U501 from your X9000's personality board.  
+
+In either case save the image as a raw binary file with a filename of eprom.bin.
+
 There are numerous versions of firmware for the X9000.  We use the MD5 sum of the
 contents of the EPROM as a unique identifier of the version. All information
 for that firmware version is kept in a subdirectory named by the MD5 sum.
 We'll call this the version subdirectory.
 
 1. Install f9dasm from https://github.com/Arakula/f9dasm
-1. Remove the EPROM from your X9000's personality board (U501) and read the contents using an EPROM programer.  Save the image as a raw binary file with a filename of eprom.bin.
 2. Run md5sum on eprom.bin.
 3. Check if the version subdirectory exists, if not create it.
 4. Move the EPROM image into the version subdirectory.
@@ -181,7 +186,3 @@ The lst2nfo.py script will extract "Make Port 5 pin 2 an output" from the listin
 ```
 lcomment C051 Make Port 5 pin 2 an output
 ```
-
-
-
-
