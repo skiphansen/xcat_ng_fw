@@ -1,7 +1,7 @@
 name: create-cp-dump-exe
 run-name: ${{ github.actor }} x9000-code-plug-dumper
-on:
-  push:
+on: 
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,13 +12,13 @@ jobs:
         os: ['windows-latest']
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
       with:
         python-version: 3.7
 
     - run: pip install pyinstaller
-    - run: pyinstaller research/cp_dump.py
+    - run: pyinstaller --onefile research/cp_dump.py
     - uses: actions/upload-artifact@v2
       with:
         path: dist/*
