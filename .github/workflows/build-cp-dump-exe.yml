@@ -13,12 +13,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v4
       with:
         python-version: 3.7
 
     - run: pip install pyinstaller
     - run: pyinstaller --onefile research/cp_dump.py
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         path: dist/*
