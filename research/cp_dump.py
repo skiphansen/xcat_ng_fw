@@ -189,9 +189,7 @@ def DumpPlDpl(mode_data,plug,BigEEPROM):
 
     if Debug:
         print(f'PlTbl 0x{PlTbl:04x}')
-        print(f'rx_index {rx_index}')
         print(f'rx_value {rx_value}')
-        print(f'tx_index {tx_index}')
         print(f'tx_value {tx_value}')
 
     if rx_value > 0 and rx_value < 0xf000:
@@ -428,22 +426,30 @@ def DumpCp(args,filename):
 
             scanlist=mode_data[16:25]
             scan_enable = mode_data[0x8] & 0x3
-            if mode_data[0xb] != 0 or mode_data[0xc] != 0 or bytearray(scanlist) != empty_scan_list and scan_enable != 0:
-                if scan_enable == 3:
+            if scan_enable != 0:
+                if scan_enable == 1:
                     print(f'  Operator selected scanning:')
                 elif scan_enable == 2:
                     print('   Scanning:')
                 else:
-                    print(f' Error: scan_enable invalid {scan_enable}')
+                    # case 0x3: invalid, but if the radio will treat it
+                    # as operator select scanning because the firmware
+                    # tests bit b0 before bit b1.  Seen in the wild
+                    print(f'  Alternative Operator selected scanning:')
 
-                if mode_data[0xb] != 0 and mode_data[0xc] != 0:
-                        print(f'    P1 mode {mode_data[0xb]}, P2 mode {mode_data[0xc]}')
+                if mode_data[0x8] & 0x40:
+                    print(f'    Operator selected P1 mode')
                 elif mode_data[0xb] != 0:
                     print(f'    P1 mode {mode_data[0xb]}')
+
+                if mode_data[0x8] & 0x20:
+                    print('    Operator selected P2 mode')
                 elif mode_data[0xc] != 0:
                     print(f'    P2 mode {mode_data[0xc]}')
 
-                if bytearray(scanlist) != empty_scan_list:
+                if mode_data[0x8] & 0x80:
+                    print('    Operator selected non priority modes')
+                elif bytearray(scanlist) != empty_scan_list:
                     print('    NP modes: ',end='')
                     DumpScanlist(scanlist)
 
