@@ -17,7 +17,10 @@ word FFE8-FFEF * additional interrupt vectors the disassemlber doesn't know abou
 unused F0AA-FFD8
 
 label 40  BEGRAM          
-label 0077 option_mode
+label 43  CurrentUserMode
+label 48  CurrentMPL
+label 77 CurrentOptionMode
+label 79 CurrentTxMode
 label 88  BUSYFLAGS1      
 label 91  rx_crc_acc
 label 0095 rx_data_count
@@ -45,8 +48,6 @@ label C0A2 CPUTSTA
 label C0AE CPUTSTB
 label C0B8 MEMLOCPASS
 label C103 COLDSTART
-label C10F CLR4F5F
-label C122 BYTE23ZERO
 label C148 WARMSTART
 label C19C NOTESTMODE
 label C242 HANGRADIO
@@ -76,16 +77,20 @@ label C9BC opcode_DISMUT
 label C9C9 opcode_PTTINH
 label C9DC opcode_RXPLIN
 label C9EF opcode_REVINH
+label CA10 opcode_TXCTRL
 label CA2C opcode_ALRTTN
 label CA93 opcode_RPTDIR
 label CAB5 opcode_MEMACS
+label C5DA opcode_ignored
 label CB15 opcode_MEMADD
+label CB3C opcode_SCONOF
 label CB5C opcode_VOLMIN
 label CB6C opcode_ETONOF
 label CB8F opcode_DEVJSR
 label CC5C opcode_ACRXPL
 label CC81 opcode_ACTXPL
 label CCC6 opcode_OPTSTS
+label CCEC opcode_button_common
 label CD0A opcode_ENTBUT
 label CD0F opcode_EXTBUT
 
@@ -100,6 +105,6 @@ label 800D CP_BandBM
 label 800E CP_HomeMode
 label 800F CP_TotalModes
 label 8018 CP_MPLDataPtr
-label 801A CP_InitMode
-label 801B CP_NumMPLs
+*label 801A CP_InitMode
+label 801A CP_NumMPLs
 

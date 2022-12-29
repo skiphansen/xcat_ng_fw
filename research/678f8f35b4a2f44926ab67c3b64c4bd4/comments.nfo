@@ -24,8 +24,33 @@ comment C002 .D6 - Squelch MSB
 comment C002 .D7 - Mic mute                      (inverted)
 comment C002 .-
 comment C002 .RAM usage
-comment C002 .M0043 User number
+comment C002 .M0043 CurrentUserMode
+comment C002 .-
+comment C002 .M0044 bit map
+comment C002 . 0x80 scan on
+comment C002 . 0x40 talkback scan
+comment C002 . 0x20 MPL on
+comment C002 . 0x10 repeat/direct ?
+comment C002 . 0x08 set to 1 on coldstart (extender on ???)
+comment C002 . 0x04
+comment C002 . 0x02
+comment C002 . 0x01
+comment C002 .-
+comment C002 .M0045 some kind of mode number
+comment C002 .M0046 some kind of mode number
+comment C002 .M0047 scan mode (defaulted to 1 on coldstart)
+comment C002 .M0048 current MPL number
 comment C002 .M0049 Current squelch level 0-5
+comment C002 .-
+comment C002 .M004E bit map related to alarms
+comment C002 . 0x80
+comment C002 . 0x40 alarm active ? (cleard by button handler for 0x010D:"alarms"
+comment C002 . 0x20
+comment C002 . 0x10
+comment C002 . 0x08
+comment C002 . 0x04
+comment C002 . 0x02 lights alarm
+comment C002 . 0x01 Horn alarm
 comment C002 .-
 comment C002 .M0074 bits (set to 0xC3 on reset)
 comment C002 . 0x20 HUB active (deactive ??)
@@ -45,11 +70,17 @@ comment C002 . 0x40 Front / rear control head (??
 comment C002 . 0x20 PL disabled (set by RXPLIN)
 comment C002 . 0x08 ??
 comment C002 .-
+comment C002 .M0079 CurrentTxMode
 comment C002 .M007B bits
+comment C002 . 0x80 ??
 comment C002 . 0x08 D1 from VOLVAL command
 comment C002 . 0x04 D2 from VOLVAL command
 comment C002 .-
 comment C002 .M007C Current vol level
+comment C002 .-
+comment C002 .M007D Bits
+comment C002 . 0x08 D2 from VOLVAL command
+comment C002 . 0x04 D1 from VOLVAL command
 comment C002 .-
 comment C002 .M0082 bits
 comment C002 . 0x20 Audio muted
@@ -66,6 +97,8 @@ comment C002 . 0x80 configuration mode active (set by ENTBUT, cleared by EXTBUT)
 comment C002 . 0x40 ??
 comment C002 . 0x01 alert tone on
 comment C002 .-
+comment C002 .M0087 bits
+comment C002 .  0x80
 comment C002 .M008D to M0090 form a 32 bit bitmapped vector, each bit corresponds to a 
 comment C002 .  message to send when the SB9600 bus is not busy when polled.  Once the
 comment C002 .  message is sent sucessfully the bit is cleared
@@ -101,9 +134,9 @@ comment C002 . 0x02 send ??
 comment C002 . 0x01 ?? 
 comment C002 .-
 comment C002 .M0090 bits note: set from CP offset 0x17 initally (usually 0x00)
-comment C002 . 0x80   
-comment C002 . 0x40   
-comment C002 . 0x20
+comment C002 . 0x80 send DISPLY scan mode  
+comment C002 . 0x40 send ALARMS   
+comment C002 . 0x20 send DISPLY NP LED update
 comment C002 . 0x10   
 comment C002 . 0x08   
 comment C002 . 0x04   
@@ -114,7 +147,7 @@ comment C002 .M0093, M0094  set as a pair,  M0093 = LSB of adr of bitmap, M0094 
 comment C002 .-
 comment C002 .M00AA Step # in current alert tone pattern
 comment C002 .-
-comment C002 .M00AC set to 0x08 or 0x03 when a new mode is activated, also set to 0x88
+comment C002 .M00AC, M00AB set as a pair, set to 0x0801 or 0x0803 when a new mode is activated, also set to 0x88
 comment C002 . 0x80
 comment C002 . 0x40   
 comment C002 . 0x20   
@@ -124,6 +157,15 @@ comment C002 . 0x04
 comment C002 . 0x02   
 comment C002 . 0x01
 comment C002 .-
+comment C002 .M00A5 - Tx audio related (TXAUD opcode)
+comment C002 . 0x80
+comment C002 . 0x40  Tx SUBAUDIO
+comment C002 . 0x20  
+comment C002 . 0x10   
+comment C002 . 0x08   
+comment C002 . 0x04   
+comment C002 . 0x02   
+comment C002 . 0x01
 comment C002 .M00AB - tone duration in ticks
 comment C002 .-
 comment C002 .M00AD bits set to 0x01 new mode is activated
@@ -164,6 +206,8 @@ comment C002 . 0x04
 comment C002 . 0x02   
 comment C002 . 0x01   
 comment C002 .-
+comment C002 .M00F2 Timer, decremented about once every 8.4 ms (every other main loop loop)
+comment C002 .-
 comment C002 .M00BF bits
 comment C002 . 0x80
 comment C002 . 0x40   
@@ -179,7 +223,7 @@ comment C002 .0x20 - programming mode MEMACS received, only MEMADD, MEMFRA, and 
 comment C002 .0x10 - if not set then exiting programming mode causes a reset
 comment C002 .0x08 = sending serial data
 comment C002 .-
-comment C002 .Mode table
+comment C002 .------------------- Mode table --------------------------------------------
 comment C002 . Offset 
 comment C002 . 0x00 RX synthesizer programming bits
 comment C002 . 0x03 TX synthesizer programming bits
@@ -188,9 +232,9 @@ comment C002 . 0x07 Tx timeout
 comment C002 .   0x80 PTT NOT allowed
 comment C002 .   0x7f Tx timeout timer<br>0=None, otherwise timeout in units of 5 seconds
 comment C002 . 0x08 Bit mapped
-comment C002 .   0x80 ??
-comment C002 .   0x40 ??
-comment C002 .   0x20 ??
+comment C002 .   0x80 1 = Operator selected non priority scan channels
+comment C002 .   0x40 1 = Operator selected first priority scan channel
+comment C002 .   0x20 1 = Operator selected second priority scan channel
 comment C002 .   0x18 Talkback scan 00=Off, 01=not used, 10=On, 11=Operator select
 comment C002 .   0x04 0=Carrier squelch, 1=Coded
 comment C002 .   0x03 Scanning 0=Off, 01=not used, 10=On, 11=Operator select
@@ -267,8 +311,7 @@ lcomment C0EE          ??? > max mode number means uninitialized
 lcomment C0F2          ??? > max mode number means uninitialized
 lcomment C0F6          ??? > max mode number means uninitialized
 lcomment C0FA       Initial mode to select in code plug header
-lcomment C0FF          This test is weird, seems like $48 would have to contain a mode
-comment C101 .number higher that the "initial" for this to be uninitialized.
+lcomment C0FF          Current MPL is > number of MPLs, coldstart
 lcomment C101          We passed all the validity checks
 lcomment C103             Radio didn't pass at least some of its "setup is valid" checks, so do full initialization
 comment C104 .Clear some fields
@@ -381,8 +424,9 @@ lcomment C2AD          get timer
 lcomment C2AF          jump if notrunning
 lcomment C2B1       decrement timer
 comment C2BC .-
+comment C2C8 .Try to send a message by scanning the 32 bit bit map starting at M008C
 lcomment C2C8       note: the first entry skipped so table really starts at C5DF
-lcomment C2D6          call routine via table
+lcomment C2D6          call routine to send the message
 comment C2DE .-------------------- End of forever loop ------------------------------------
 lcomment C2DE       Disable receive interrupts on serial
 lcomment C2E4       Re-enable receive interrupts on serial
@@ -463,16 +507,14 @@ lcomment C51E             incb
 lcomment C51F             incb
 lcomment C520          save first byte of packet sa address +2 (MPL???)
 lcomment C522          bra-relative
-comment C524 .-
-lcomment C524       ldab-extend
-lcomment C527             incb
+comment C524 .start sending to our adr + 1 (DSP)
 lcomment C528          save our address + 1 (DSP ???)
-lcomment C52A          bra-relative
+lcomment C52A          start sending if we can
 comment C52C .-
 lcomment C531          start sending packet
 lcomment C533       get our address
 lcomment C536          save it 
-comment C53A .-
+comment C53A .Start broadcasting a message
 lcomment C53B          adr = broadcast
 lcomment C53F       Test "Busy In" (active low)
 comment C544 .Send byte in ACCB, return with interrupts disabled
@@ -481,7 +523,7 @@ lcomment C555          send byte
 lcomment C557             set carry ??
 comment C55A .First level opcode handler jump table opcodes 0x00 to 0x3f
 comment C55A .opcodes above 0x3f are not supported by the X9000
-lcomment C55A This is a branch table referenced via X from 0xC320
+lcomment C55A    This is a branch table referenced via X from 0xC320
 comment C56A .0x08
 comment C57A .0x10
 comment C59A .0x20
@@ -499,9 +541,13 @@ comment C62F .end of table
 comment C62F .called when 0x04 is set in M0090
 comment C633 .-
 comment C637 .-
+lcomment C637       Start broadcasting a message
+lcomment C63A          bail if busy
 lcomment C65D          PRUPST
 lcomment C661       set 0x40 in M0062 sometime later
 comment C667 .Yes this really is code!  Executed via jump table @ C6D6
+lcomment C684       Start broadcasting a message
+lcomment C687          bail if busy
 lcomment C6CA          PRUPST
 comment C6CF .-
 comment C716 .heart beat interrupt (timer overflow)
@@ -593,7 +639,7 @@ lcomment C807             Count down from 8, as set above
 lcomment C80A       Increment pointer
 lcomment C80D       Decrement outer loop counter
 comment C816 .-
-lcomment C81C group 0/dev adr = MPL
+lcomment C81C          group 0/dev adr = MPL
 lcomment C820       activate the mode
 comment C824 .-
 comment C82A .-
@@ -621,7 +667,7 @@ lcomment C8E9          get volume level
 lcomment C8ED          VOLVAL
 comment C8F2 .handle SQLVAL opcode
 comment C918 .opcode_ACTMDW activate a \*\*OPTION\*\* mode
-lcomment C918 get group/dev adr, data1
+lcomment C918          get group/dev adr, data1
 lcomment C91A          mask D1, D2
 lcomment C91C          ignore if neither are set
 lcomment C931       Calculate memory offset of current mode entry in code plug
@@ -630,6 +676,13 @@ lcomment C934       send ACTMDU
 comment C93E .-
 comment C942 .handle RXAUD opcode
 comment C968 .handle TXAUD opcode
+lcomment C96A       DATA4 == 0 ? off
+lcomment C96D          jump if not off
+lcomment C96F       is D2 set?
+lcomment C972          jump if not (not subaudio)
+lcomment C976       is D3 set?
+lcomment C979          jump if not (not audio)
+comment C98C .-
 comment C9BC .handle DISMUT opcode
 comment C9C9 .handle PTTINH opcode
 lcomment C9C9       PTT disable?
@@ -652,6 +705,7 @@ lcomment CA3A          jump if not
 lcomment CA3D          turn off tone
 comment CA40 .-
 lcomment CA87       transmitter keyed?
+lcomment CA8A          jump if not
 comment CA93 .handle RPTDIR opcode
 comment CAB5 .Handle MEMACS (0x08) opcode
 lcomment CAB8          bit D1 is not set, enter normal bus activity
@@ -764,6 +818,8 @@ lcomment CDE4          jump if so
 lcomment CDE6       set bit 2 LOW, we're keying up
 comment CDEA .button handler for front/rear control addressed to broadcast
 lcomment CDEA          get DATA2 and opcode
+lcomment CDEC          SETBUT ?
+lcomment CDF0          set timeout
 comment CE00 .button handler for MODE sent to RADIO address
 lcomment CE00          get DATA2 and opcode
 lcomment CE02       in configuration or ??? mode
@@ -772,7 +828,7 @@ lcomment CE0C          get DATA2 and opcode
 lcomment CE0E          SETBUT ?
 lcomment CE12          INCBUT ?
 lcomment CE16          DECBUT ?
-lcomment CE1A          EXTBUT ?
+lcomment CE1A          opcode EXTBUT (exit configuration) ?
 lcomment CE1E          SHOBUT ?
 comment CE23 .Mode SETBUT or EXTBUT
 comment CE2D .-
@@ -789,6 +845,10 @@ lcomment CE60       wrap from mode 1 to max mode
 comment CE65 .-
 comment CE6B .button handler for volume sent to RADIO adr
 lcomment CE6B          get DATA2 and opcode
+lcomment CE70          SHOBUT ?
+lcomment CE74          SETBUT ?
+lcomment CE78          INCBUT ?
+lcomment CE7C          DECBUT ?
 comment CE8B .-
 comment CEC8 .-
 comment CECE .-
@@ -797,9 +857,9 @@ lcomment CED4          get DATA2 and opcode
 lcomment CED6          SHOBUT?
 lcomment CEDA          SETBUT ?
 lcomment CEDE          INCBUT ?
-lcomment CEE2          CBUT ?
-lcomment CEE6          ENTBUT ?
-lcomment CEEA          EXTBUT ?
+lcomment CEE2          DECBUT ?
+lcomment CEE6          ENTBUT (enter configuration) ?
+lcomment CEEA          EXTBUT (exit configuration) ?
 comment CEEF .handle SETBUT squelch sent to RADIO
 lcomment CEEF          TA2 < 5 ?
 lcomment CEF1          jump if so and save it
@@ -810,53 +870,138 @@ lcomment CF1B          get current squelch level
 comment CF23 .-
 comment CF29 .button handler for 0x0104:"repeat/direct"
 lcomment CF29          get DATA2 and opcode
+lcomment CF2B          SHOBUT ?
 lcomment CF32       calculate mode adr in EEPROM
 lcomment CF49          get DATA2 and opcode
+lcomment CF4B          SETBUT ?
+lcomment CF4F          INCBUT ?
+lcomment CF53          DECBUT ?
+comment CF5C .SETBUT "repeat/direct"
+comment CF67 .INCBUT or DECBUT "repeat/direct"
 comment CF6B .button handler for 0x0105:"monitor"
 lcomment CF6B          get DATA2 and opcode
+lcomment CF6D          SHOBUT ?
+lcomment CF71          SETBUT ?
+lcomment CF75          INCBUT ?
+lcomment CF79          DECBUT ?
 comment CF97 .button handler for 0x0106:"extender"
 lcomment CF97          get DATA2 and opcode
+lcomment CF99          SHOBUT ?
 lcomment CFA0       calculate mode adr in EEPROM
 lcomment CFB2          get DATA2 and opcode
+lcomment CFB4          SETBUT ?
+lcomment CFB8          INCBUT ?
+lcomment CFBC          DECBUT ?
+comment CFC5 .SETBUT 0x0106:"extender"
 comment CFD4 .button handler for 0x0108:"home"
 lcomment CFEB       Calculate memory offset of current mode entry in code plug
 comment CFEE .Uses $43 as source, $A3 as destination
 lcomment CFFA       send DISPLY mode with new mode
-comment D001 .button handler for 0x010D:"alarms"
+comment D001 .button handler for 0x010D:"alarms" sent to radio
+comment D006 .button handler for 0x010F sent to radio
 comment D009 .button handler for 0x010F:"alarms select"
 lcomment D009          get DATA2 and opcode
+lcomment D00B          SHOBUT ?
+lcomment D00F          SETBUT ?
+lcomment D013          INCBUT ?
+lcomment D017          DECBUT ?
+lcomment D01B          ENTBUT (enter configuration) ?
+lcomment D01F          EXTBUT (exit configuration) ?
 comment D078 .button handler for 0x010E:"alarms on/off"
 lcomment D078          get DATA2 and opcode
+lcomment D07A          SHOBUT ?
+lcomment D07E          SETBUT ?
+lcomment D082          INCBUT ?
+lcomment D086          DECBUT ?
+lcomment D0A8       set lights alarm
 comment D0B5 .button handler for scan on/off sent to DSP
 lcomment D0B5          get DATA1 and DATA2
-lcomment D0B7 DATA2 == 9?
-lcomment D0B9 jump if not
-lcomment D0BD scan (on or oper select) ?
+lcomment D0B7          SHOBUT ?
+lcomment D0B9          jump if not
+lcomment D0BD       scan (on or oper select) ?
 lcomment D0C0          return if not
 lcomment D0C5          return if not
-lcomment D0C7 DATA2 == 10 ?
-lcomment D0C9 jump if so
-lcomment D0CB DATA2 == 11 ?
-lcomment D0CF DATA2 == 12 ?
-comment D0D4 .-
+lcomment D0C7          SETBUT ?
+lcomment D0C9          jump if so
+lcomment D0CB          INCBUT ?
+lcomment D0CF          DECBUT ?
+comment D0D4 .SHOBUT scan on/off
+comment D0D8 .SETBUT scan on/off
 comment D0E3 .-
 comment D0E7 .button handler for scan mode sent to DSP
 lcomment D0E7          get DATA2 and opcode
+lcomment D0E9          ENTBUT (enter configuration) ?
+lcomment D0EB          jump if so
+lcomment D0ED          EXTBUT (exit configuration) ?
+lcomment D0EF          jump if not
+comment D108 .scan mode button handler jump table,first entry is for SHOBUT 0x09
+comment D118 .handle ENTBUT,  scan mode sent to DSP
 lcomment D11A       scanning enabled ?
-lcomment D11D          jump if not
+lcomment D11D          bail if not
+lcomment D11F       set scanning enabled bit
+lcomment D12D          bail if not
+lcomment D135       send DISP scan mode, NP LED
+comment D139 .handler for EXTBUT sent to DSP
 comment D178 .-
+lcomment D178       send DISP scan mode, NP LED
+comment D17E .SHOBUT scan mode
+lcomment D17E       send DISP scan mode, NP LED
+comment D182 .SETBUT scan mode
+lcomment D19A       send DISP scan mode, NP LED
+lcomment D1A4       operator select for NP modes?
+lcomment D1A7          jump if not
+lcomment D1B2       any operator select modes?
+lcomment D1B5          jump if not
+lcomment D1C5       operator select for NP modes?
+lcomment D1D3       operator select for P2 ?
+lcomment D1E1       operator select for P1 ?
+lcomment D1EB       operator select for NP modes?
+lcomment D1F3       send DISP scan mode, NP LED
+comment D1F7 .INCBUT scan mode
+comment D206 .DECBUT scan mode
+lcomment D213       send DISP scan mode, NP LED
+comment D21C .EXTBUT scan mode
+comment D22D .DELBUT scan mode
+lcomment D241       send DISP scan mode, NP LED
+lcomment D259       send DISP scan mode, NP LED
+lcomment D298       send DISP scan mode, NP LED
+comment D2BC .-
 comment D2C3 .button handler for 0x0202:"dynamic scan functions"
+lcomment D2D4          SETBUT ?
 lcomment D2FD       transmitter keyed?
+lcomment D300          jump if not
 lcomment D340       transmitter keyed?
+lcomment D343          jump if not
+lcomment D347       operator select for NP modes?
+lcomment D351       operator select for P2 ?
 comment D391 .button handler for 0x0203:"talkback scan"
 lcomment D391          get DATA2 and opcode
+lcomment D393          SHOBUT ?
+lcomment D3A3          SETBUT ?
+lcomment D3A7          INCBUT ?
+lcomment D3AB          DECBUT ?
+comment D3B4 .SETBUT "talkback scan"
 comment D3C3 .button handler for 0x0300:"MPL on/off"
 lcomment D3C3          get DATA2 and opcode
+lcomment D3C5          SHOBUT ?
 lcomment D3CC       calculate mode adr in EEPROM
 lcomment D3E1       calculate mode adr in EEPROM
 lcomment D3F3          get DATA2 and opcode
+lcomment D3F5          SETBUT ?
+lcomment D3F9          INCBUT ?
+lcomment D3FD          DECBUT ?
+comment D402 .SHOBUT "MPL on/off"
+comment D406 .SETBUT "MPL on/off"
 comment D421 .button handler for 0x0301:"MPL code"
 lcomment D421          get DATA2 and opcode
+lcomment D423          SHOBUT ?
+lcomment D427          SETBUT ?
+lcomment D42B          INCBUT ?
+lcomment D42F          DECBUT ?
+lcomment D433          ENTBUT (enter configuration) ?
+lcomment D437          EXTBUT (exit configuration) ?
+lcomment D4D6       operator select for NP modes?
+lcomment D4F6       operator select for NP modes?
 comment D540 .Called when 0x80 is set in M008D
 lcomment D548          return bus is busy
 lcomment D54A       clear request bit
@@ -898,6 +1043,8 @@ lcomment D666          return bus is busy
 lcomment D668       clear request
 lcomment D66F          ACTSTU
 comment D679 .Called when 0x40 is set in M008E, send PTTINH
+lcomment D679       Start broadcasting a message
+lcomment D67C          bail if busy
 lcomment D67E       clear new mode bit
 lcomment D682       PTT disabled ?
 lcomment D685          jump if so
@@ -915,7 +1062,7 @@ lcomment D6B6          Adr = MDC600 SelCall
 lcomment D6BE          DISPLY
 comment D6C8 .called when 0x02 is set in M008E, send field ID 9
 lcomment D6CB          return bus is busy
-lcomment D6D0 field ID
+lcomment D6D0          field ID
 comment D6E7 .-
 lcomment D6E9          DISPLY
 comment D6F3 .called when 0x01 is set in M008E, send field ID 10
@@ -930,7 +1077,7 @@ lcomment D739          field ID
 lcomment D74C          DISPLY
 comment D756 .called when 0x04 is set in M008E, send 
 lcomment D759          return bus is busy
-lcomment D75E field ID
+lcomment D75E          field ID
 lcomment D762          get current squelch level
 lcomment D766          DISPLY
 comment D770 .called when 0x40 is set in M008F
@@ -947,25 +1094,41 @@ lcomment D7D0          jump bus is busy
 lcomment D7DE          RXPLIN
 comment D7E8 .called when 0x02 is set in M008F
 lcomment D7EB          jump bus is busy
-lcomment D7FC          DISPLY
+lcomment D7FC          DISPLY opcode
 comment D806 .called when 0x01 is set in M008F
 lcomment D809          jump bus is busy
 lcomment D81F          DISPLY
 comment D829 .called when 0x80 is set in M0090
-lcomment D839          DISPLY
+lcomment D829       start sending to our adr + 1 (DSP)
+lcomment D82C          bail if bus was busy
+lcomment D831          field ID = 1 scan mode
+lcomment D837          display data
+lcomment D839          opcode=DISPLY
 comment D843 .called when 0x40 is set in M0090
-lcomment D854          ALARMS
+lcomment D843       Start broadcasting a message
+lcomment D846          bail if busy
+lcomment D852          save D1, D2
+lcomment D854          opcode ALARMS
 comment D85E .called when 0x20 is set in M0090
+lcomment D85E       start sending to our adr + 1 (DSP)
+lcomment D861          bail if bus was busy
+lcomment D866          field NP LED
 lcomment D871          DISPLY
 comment D87B .called when 0x10 is set in M0090
+lcomment D87B       start sending to our adr + 1 (DSP)
+lcomment D87E          bail if bus was busy
 lcomment D88F          DISPLY
 comment D899 .called when 0x08 is set in M0090
+lcomment D899       start sending to our adr + 1 (DSP)
+lcomment D89C          bail if bus was busy
 lcomment D8AE          DISPLY
 comment D8B8 .called when 0x01 is set in M0090
 lcomment D8C8          DISPLY
 comment D8D2 .called when 0x02 is set in M0090
 lcomment D8E6          DISPLY
 comment D8F0 .called when 0x08 is set in M008F
+lcomment D8F0       start sending to our adr + 1 (DSP)
+lcomment D8F3          bail if bus was busy
 lcomment D900          DISPLY
 comment D90A .-
 lcomment D91D       ptt active?
@@ -1079,11 +1242,16 @@ comment DC11 .table entry 0x16 - dynamic regroup tone
 comment DC1F .table entry 0x17 - talk permit tone
 comment DC2F .called from various places and main loop every 4.2 milliseconds
 lcomment DC35       transmitter keyed?
+lcomment DC38          jump if keyed
+lcomment DC49          from rear timer ?
+lcomment DC69          SETBUT ?
 lcomment DC88       transmitter keyed?
+lcomment DC8B          jump if not
 lcomment DCAB       mute detector
 lcomment DCAE       unmute audio
 lcomment DCB1          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 comment DCB3 .-
+lcomment DCB3       unmute detector
 lcomment DCB6       mute audio
 lcomment DCB9          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squelch=11+MicMute
 comment DCBB .-
@@ -1098,6 +1266,7 @@ lcomment DCF5          Seems to set noDeEmph+RXflat+TXsplatter+noPreamp/WE+Squel
 lcomment DCFE       unmute audio
 comment DD02 .-
 lcomment DD02       transmitter keyed?
+lcomment DD05          jump if keyed
 comment DD2E .-
 comment DD87 .Scale volume.  Called with B 0x00 -> 0xff
 comment DD87 .return B 0x17 -> 0xff and A = something odd that I don't understand
@@ -1114,7 +1283,9 @@ comment DDAF .called by main loop every 2.1 milliseconds
 lcomment DDB3          transmitter keyed?
 lcomment DDB7       send RADKEY
 lcomment DDBD       transmitter keyed?
+lcomment DDC0          jump if not
 lcomment DDC9       transmitter keyed?
+lcomment DDCC          jump if keyed
 lcomment DDE6       squelch decision ?
 lcomment DDE9          jump if open
 lcomment DDEB       was it open ?
@@ -1131,10 +1302,13 @@ lcomment DEA1       PTT disabled ?
 lcomment DEA4          return if not
 lcomment DEA6       clear b4? makes no sense, we tested it above so it's already zero
 lcomment DEE7       transmitter keyed?
+lcomment DEEA          jump if keyed
 comment DF7C .-
-comment DF9B .-
+comment DF9B .mainloop: handle scanning 
 lcomment DFA7       operator select scanning ?
 lcomment DFAA          jump if not
+comment DFB6 .-
+lcomment DFBE       scanning on?
 comment DFC4 .-
 comment DFFA .-
 lcomment DFFC          current mode
@@ -1146,14 +1320,18 @@ lcomment E025       calculate mode adr in EEPROM
 lcomment E03A       calculate mode adr in EEPROM
 lcomment E071       calculate mode adr in EEPROM
 lcomment E09D       calculate mode adr in EEPROM
+comment E0B4 .-
 lcomment E0E0       calculate mode adr in EEPROM
 lcomment E10B          save volume
 lcomment E11E          get current squelch level
 lcomment E136       clear PTT bit (PTT active)
 comment E13A .-
 lcomment E14F       transmitter keyed?
+lcomment E152          jump if keyed
 lcomment E15D       transmitter keyed?
+lcomment E160          jump if keyed
 lcomment E174       transmitter keyed?
+lcomment E177          jump if keyed
 lcomment E193       Calculate memory offset of current mode entry in code plug
 comment E196 .Uses $77 as source, $A1 as destination
 lcomment E1A7       send ACTMDU
@@ -1162,25 +1340,28 @@ lcomment E254       send RADKEY
 comment E258 .-
 lcomment E266       calculate mode adr in EEPROM
 lcomment E26E       Turn on 9.4v to transmitter
-lcomment E271 Send new values to synth chip
+lcomment E271       Send new values to synth chip
+comment E27B .-
 lcomment E27E       calculate mode adr in EEPROM
 lcomment E298       Turn on 9.4v to transmitter
-lcomment E29B Send new values to synth chip
+lcomment E29B       Send new values to synth chip
 lcomment E2B7       enable PA
 lcomment E2DD       switch off 9.4v to transmitter
 comment E2F7 .-
 lcomment E2FA       switch off 9.4v to transmitter
-lcomment E336 Send new values to synth chip
+lcomment E336       Send new values to synth chip
 comment E346 .-
 lcomment E349       transmitter keyed?
+lcomment E34C          jump if not
+comment E357 .-
 comment E35C .-
 lcomment E35C       transmitter keyed?
+lcomment E35F          jump if not
 comment E36D .Calculate memory offset of current OPTION mode entry in code plug, 
 comment E36D .saves it in option_mode_adr
 lcomment E36D          
 lcomment E370       Fetch mode entry size in bytes
 lcomment E374       Offset to beginning of mode entries in code plug
-lcomment E379 39
 comment E37A .-
 lcomment E37A          Calculate memory offset of new mode entry in code plug
 lcomment E37D       Fetch mode entry size in bytes
@@ -1188,21 +1369,22 @@ lcomment E381       Offset to beginning of mode entries in code plug
 lcomment E386             End of function SETUPMODEADDR43
 comment E387 .Send new values to synth chip
 lcomment E38D       synth sync ?
-lcomment E390 loop if sync isn't set yet
+lcomment E390          loop if sync isn't set yet
 comment E392 .-
-lcomment E392 init timeout for waiting for sync
-lcomment E395 timeout, do it anyway
+lcomment E392          init timeout for waiting for sync
+lcomment E395          timeout, do it anyway
 lcomment E397       synth sync ?
-lcomment E39A loop if sync isn't cleared yet
+lcomment E39A          loop if sync isn't cleared yet
 comment E39C .copy from EEPROM to RAM for later load into synthesizer chip
 lcomment E39C          get two bytes of Syn bits
 lcomment E39E          invert LSB
 lcomment E3A0          save in RAM
 lcomment E3A4             get upper nibble
-lcomment E3A8 invert bit 0x4
+lcomment E3A8          invert bit 0x4
 lcomment E3B0       transmitter keyed?
+lcomment E3B3          jump if keyed
 comment E3B9 .-
-lcomment E3BB branch never?  timing?
+lcomment E3BB          branch never?  timing?
 comment E3BD .-
 lcomment E3C1          jump if not lowband
 comment E3C3 .low band radio
@@ -1228,15 +1410,27 @@ lcomment E59C       calculate mode adr in EEPROM
 lcomment E5D4          get tx DPL/MPL values
 comment E7EA .-
 comment E7F5 .-
+lcomment E80F          get PL bits
+lcomment E814          or in new PL bits
+lcomment E816          output
+comment EB7E .-
+lcomment EB85       operator select for NP modes?
+comment EB8A .clear memory from M005F to M006F
+lcomment EBA4          get 8 NP scan table bits ??
+lcomment EBA7          get offset into NP scan table again
+comment EBB2 .-
+lcomment EBC6       operator select for P1 ?
+lcomment EBDC       operator select for P2 ?
+comment EBEC .-
 comment EC24 .      
 lcomment EC2A       send RXMODE
-lcomment EC35 Send new values to synth chip
+lcomment EC35       Send new values to synth chip
 comment EC44 .Called from the main loop via M00B5
 lcomment EC44       Channel activity ?
 comment EC4E .also called from main loop via M00B5
 lcomment EC5B       send RXMODE
 comment EC82 .-
-lcomment EC82 Send new values to synth chip
+lcomment EC82       Send new values to synth chip
 comment EC8F .called from mainloop via M00B5
 lcomment EC93       send RXMODE
 comment ED33 .Called from the main loop via M00B5
@@ -1250,19 +1444,19 @@ comment EDE8 .Called from the main loop via M00B5
 comment EE1B .Called from the main loop via M00B5
 comment EE98 .Called from the main loop via M00B5
 comment EEEF .Called from the main loop via M00B5
-lcomment EF17 Send new values to synth chip
+lcomment EF17       Send new values to synth chip
 lcomment EF3E       Channel activity ?
 lcomment EF4F       Channel activity ?
 lcomment EF60       mute detector
 lcomment EF6B       squelch decision ?
 lcomment EF82       send RXMODE
-lcomment EFB3 Send new values to synth chip
+lcomment EFB3       Send new values to synth chip
 lcomment EFD3       Channel activity ?
 lcomment EFE4       Channel activity ?
 lcomment EFF5       mute detector
 lcomment F000       squelch decision ?
 lcomment F017       send RXMODE
-lcomment F035 Send new values to synth chip
+lcomment F035       Send new values to synth chip
 lcomment F064       Channel activity ?
 lcomment F081       Channel activity ?
 comment F0A1 .X = mode address for mode # in B
